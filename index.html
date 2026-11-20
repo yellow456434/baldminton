@@ -241,7 +241,7 @@ details.bulk textarea{width:100%;min-height:110px;margin-top:8px;border:1px soli
         <label>等級制度</label>
         <div class="seg" role="group" aria-label="等級制度">
           <button type="button" data-scale="fine">1–15</button>
-          <button type="button" data-scale="tier">特級／一般</button>
+          <button type="button" data-scale="tier">狗派／貓派</button>
         </div>
       </div>
     </div>
@@ -259,7 +259,7 @@ details.bulk textarea{width:100%;min-height:110px;margin-top:8px;border:1px soli
     <form class="add" id="addForm">
       <input name="name" placeholder="名字" autocomplete="off" required>
       <select name="level" class="num" aria-label="等級 1 到 15"><option>1</option><option>2</option><option>3</option><option>4</option><option selected>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option></select>
-      <select name="tier" aria-label="等級"><option value="reg">一般廚師</option><option value="pro">特級廚師</option></select>
+      <select name="tier" aria-label="等級"><option value="reg">貓派</option><option value="pro">狗派</option></select>
       <button class="btn" type="submit">加入</button>
     </form>
     <div class="listhead"><span class="hcheck">出席</span><span>名字</span><span id="lvHead">等級</span><span>場次</span><span></span></div>
@@ -419,7 +419,7 @@ function render(){
     b.setAttribute('aria-expanded', !shut);
     $('#' + b.getAttribute('aria-controls')).hidden = shut;
   });
-  $('#setSum').textContent = `${S.courts} 面場，${mixMode ? '混打' : '等級，' + (tierMode ? '特級／一般' : '1–15')}`;
+  $('#setSum').textContent = `${S.courts} 面場，${mixMode ? '混打' : '等級，' + (tierMode ? '狗派／貓派' : '1–15')}`;
   $('#plSum').textContent = `出席 ${S.players.filter(p => p.active).length}／${S.players.length} 人`;
   $('#scaleBox').hidden = mixMode;
   document.querySelector('.pair').classList.toggle('two', mixMode);
@@ -429,7 +429,7 @@ function render(){
   $('#bulkText').placeholder = mixMode
     ? '每行一位，只要輸入名字\n小明\n阿華\nKevin'
     : tierMode
-    ? '每行一位，名字和「特」或「般」用空白或逗號隔開\n小明 特\n阿華,般\nKevin 特'
+    ? '每行一位，名字和「狗」或「貓」用空白或逗號隔開\n小明 狗\n阿華,貓\nKevin 狗'
     : '每行一位，名字和等級用空白或逗號隔開\n小明 10\n阿華,6\nKevin 13';
 
   const st = stats();
@@ -442,7 +442,7 @@ function render(){
         <input type="checkbox" ${p.active ? 'checked' : ''} aria-label="${esc(p.name)} 出席">
         <span class="pname" title="${esc(p.name)}">${esc(p.name)}</span>
         ${mixMode ? '<span></span>' : tierMode
-          ? `<button type="button" class="tierbtn ${tierOf(p)}" aria-label="${esc(p.name)} 目前是${tierOf(p) === 'pro' ? '特級廚師' : '一般廚師'}，點一下切換">${tierOf(p) === 'pro' ? '特級' : '一般'}</button>`
+          ? `<button type="button" class="tierbtn ${tierOf(p)}" aria-label="${esc(p.name)} 目前是${tierOf(p) === 'pro' ? '狗派' : '貓派'}，點一下切換">${tierOf(p) === 'pro' ? '狗派' : '貓派'}</button>`
           : `<select class="lvsel num" aria-label="${esc(p.name)} 等級">${Array.from({ length: 15 }, (_, i) => `<option${i + 1 === p.level ? ' selected' : ''}>${i + 1}</option>`).join('')}</select>`}
         <span class="games num">${st.games[p.id] || 0}</span>
         <button class="del" type="button" aria-label="移除 ${esc(p.name)}">×</button>
@@ -462,12 +462,12 @@ function render(){
 }
 
 const badge = p => S.mode === 'mix' ? '' : S.scale === 'tier'
-  ? `<span class="lv ${tierOf(p) === 'pro' ? '' : 'reg'}">${tierOf(p) === 'pro' ? '特級' : '一般'}</span>`
+  ? `<span class="lv ${tierOf(p) === 'pro' ? '' : 'reg'}">${tierOf(p) === 'pro' ? '狗派' : '貓派'}</span>`
   : `<span class="lv num">${p.level}</span>`;
 const chip = id => { const p = byId(id); return p ? `<span class="chip"><span class="n">${esc(p.name)}</span>${badge(p)}</span>` : '<span class="chip"><span class="n">（已移除）</span></span>'; };
 const lvSum = ids => ids.reduce((s, id) => s + (byId(id)?.level || 0), 0);
 const proN = ids => ids.filter(id => { const p = byId(id); return p && tierOf(p) === 'pro'; }).length;
-const scoreText = c => S.mode === 'mix' ? '' : S.scale === 'tier' ? `特級 ${proN(c.a)} : ${proN(c.b)}` : `${lvSum(c.a)} : ${lvSum(c.b)}`;
+const scoreText = c => S.mode === 'mix' ? '' : S.scale === 'tier' ? `狗派 ${proN(c.a)} : ${proN(c.b)}` : `${lvSum(c.a)} : ${lvSum(c.b)}`;
 
 function renderCurrent(){
   const box = $('#current');
@@ -528,8 +528,8 @@ function parseLines(text){
     if(m){
       const v = m[2];
       if(/^\d{1,2}$/.test(v)){ name = m[1]; lv = v; tier = null; }
-      else if(/^(特|特級|特級廚師|強)$/.test(v)){ name = m[1]; tier = 'pro'; }
-      else if(/^(般|一般|一般廚師|弱|普通)$/.test(v)){ name = m[1]; tier = 'reg'; }
+      else if(/^(狗|狗派|特|特級|特級廚師|強)$/.test(v)){ name = m[1]; tier = 'pro'; }
+      else if(/^(貓|貓派|般|一般|一般廚師|弱|普通)$/.test(v)){ name = m[1]; tier = 'reg'; }
     }
     if(S.mode === 'mix'){ lv = 5; tier = null; }
     n += addPlayer(name, lv, tier) ? 1 : 0;
@@ -537,7 +537,7 @@ function parseLines(text){
   return n;
 }
 const bulkModal = $('#bulkModal');
-const scaleName = s => s === 'tier' ? '特級／一般' : s === 'fine' ? '1–15' : s === 'none' ? '混打' : '未記錄制度';
+const scaleName = s => s === 'tier' ? '狗派／貓派' : s === 'fine' ? '1–15' : s === 'none' ? '混打' : '未記錄制度';
 function fillRosterSelect(){
   const list = loadRosters();
   $('#bulkRoster').innerHTML = '<option value="">導入常用名單</option>' + (list.length
@@ -577,7 +577,7 @@ $('#bulkRoster').addEventListener('change', e => {
     if(bulkFmt === 'tier'){
       // 1–15 名單轉二分：5 以下一般，大於 5 特級
       const pro = rScale === 'tier' ? tierOf(p) === 'pro' : p.level > 5;
-      return `${p.name} ${pro ? '特' : '般'}`;
+      return `${p.name} ${pro ? '狗' : '貓'}`;
     }
     // 二分名單轉 1–15：特級 10、一般 5
     const lv = rScale === 'tier' ? (tierOf(p) === 'pro' ? 10 : 5) : p.level;
