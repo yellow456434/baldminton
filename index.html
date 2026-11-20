@@ -176,6 +176,18 @@ details.bulk textarea{width:100%;min-height:110px;margin-top:8px;border:1px soli
 .court{background:var(--court);border-radius:6px;padding:10px;color:#fff;position:relative}
 .court .tag{display:flex;justify-content:space-between;align-items:baseline;padding:0 4px 8px}
 .court .tag b{font-size:15px}
+.court .tag b small{font-weight:500;font-size:12px;opacity:.8;margin-left:8px}
+.court.idle{background:var(--court-deep)}
+.vacant{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:700;letter-spacing:.1em;opacity:.85}
+.vacant{z-index:1}
+.cbtn{display:block;width:100%;margin-top:10px;padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.14);color:#fff;font-weight:700;cursor:pointer;font-size:14px}
+.cbtn:hover{background:rgba(255,255,255,.24)}
+.cbtns{display:flex;gap:8px;margin-top:10px}
+.cbtns .cbtn{margin-top:0;flex:1;width:auto;min-width:0;white-space:nowrap}
+.cbtns .cbtn.ghost{flex:0 0 auto;padding:8px 14px;background:transparent;font-weight:500}
+.cbtns .cbtn.ghost:hover{background:rgba(255,255,255,.12)}
+.court.idle .cbtn{background:var(--surface);color:var(--ink);border-color:transparent}
+.btn:disabled{opacity:.45;cursor:default}
 .court .tag .score{font-size:20px}
 .surface{position:relative;aspect-ratio:2.2/1;border:2px solid var(--line);display:grid;grid-template-columns:1fr 1fr}
 /* court markings */
@@ -260,7 +272,7 @@ details.bulk textarea{width:100%;min-height:110px;margin-top:8px;border:1px soli
       <input name="name" placeholder="名字" autocomplete="off" required>
       <select name="level" class="num" aria-label="等級 1 到 15"><option>1</option><option>2</option><option>3</option><option>4</option><option selected>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option></select>
       <select name="tier" aria-label="等級"><option value="reg">貓派</option><option value="pro">狗派</option></select>
-      <button class="btn" type="submit">加入</button>
+      <button class="btn" type="button" data-submit>加入</button>
     </form>
     <div class="listhead"><span class="hcheck">出席</span><span>名字</span><span id="lvHead">等級</span><span>場次</span><span></span></div>
     <ul class="plist" id="plist"></ul>
@@ -272,8 +284,8 @@ details.bulk textarea{width:100%;min-height:110px;margin-top:8px;border:1px soli
   <main>
     <div class="actions">
       <button class="btn primary" id="next">排下一輪</button>
-      <button class="btn" id="redo">重排這一輪</button>
-      <button class="btn ghost" id="reset">清除所有輪次</button>
+      <button class="btn" id="undo">復原</button>
+      <button class="btn ghost" id="reset">清除所有紀錄</button>
     </div>
     <div id="current"></div>
     <section class="hist" id="hist"></section>
@@ -301,7 +313,7 @@ details.bulk textarea{width:100%;min-height:110px;margin-top:8px;border:1px soli
     </div>
     <form class="add" id="saveForm">
       <input name="rname" placeholder="名單名稱，例如：週三球團" autocomplete="off" style="flex:1">
-      <button class="btn" type="submit">儲存目前名單</button>
+      <button class="btn" type="button" data-submit>儲存目前名單</button>
     </form>
     <ul class="rlist" id="rlist"></ul>
   </div>
@@ -310,9 +322,23 @@ details.bulk textarea{width:100%;min-height:110px;margin-top:8px;border:1px soli
 
 <script>
 const KEY = 'badminton-rotation-v1';
-let S = load() || { courts: 2, mode: 'close', scale: 'fine', players: [], rounds: [], seq: 1 };
+let S = load() || { courts: 2, mode: 'close', scale: 'fine', players: [], games: [], board: [], tick: 0, seq: 1 };
 if(!S.scale) S.scale = 'fine';
-let freshRound = false;
+// 舊版資料（整輪紀錄）轉成逐場紀錄
+if(!S.games){
+  S.games = []; S.board = []; S.tick = 0;
+  (S.rounds || []).forEach((r, ri) => {
+    S.tick = ri + 1;
+    r.courts.forEach((c, ci) => {
+      S.games.push({ court: ci, a: c.a, b: c.b, t: S.tick });
+      if(ri === S.rounds.length - 1) S.board[ci] = S.games.length - 1;
+    });
+  });
+  delete S.rounds;
+  save();
+}
+if(!S.board) S.board = [];
+let fresh = new Set();
 
 function load(){ try{ const t = localStorage.getItem(KEY); return t ? JSON.parse(t) : null; }catch(e){ return null; } }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
@@ -340,12 +366,12 @@ function shuffle(a){ for(let i = a.length - 1; i > 0; i--){ const j = Math.floor
 /* ---------- 統計：從輪次紀錄推算 ---------- */
 function stats(){
   const games = {}, last = {}, partner = {}, met = {};
-  S.rounds.forEach((r, ri) => r.courts.forEach(c => {
+  S.games.forEach(c => {
     const all = [...c.a, ...c.b];
-    all.forEach(id => { games[id] = (games[id] || 0) + 1; last[id] = ri; });
+    all.forEach(id => { games[id] = (games[id] || 0) + 1; last[id] = c.t; });
     [c.a, c.b].forEach(([x, y]) => { const k = [x, y].sort().join('|'); partner[k] = (partner[k] || 0) + 1; });
     for(let i = 0; i < 4; i++) for(let j = i + 1; j < 4; j++){ const k = [all[i], all[j]].sort().join('|'); met[k] = (met[k] || 0) + 1; }
-  }));
+  });
   return { games, last, partner, met };
 }
 
@@ -357,14 +383,8 @@ function makeRound(){
   const st = stats();
 
   // 1. 誰上場：打最少場的優先，再來是休息最久的
-  const order = shuffle([...active]).sort((p, q) => {
-    const g = (st.games[p.id] || 0) - (st.games[q.id] || 0);
-    if(g) return g;
-    const lp = st.last[p.id] ?? -1, lq = st.last[q.id] ?? -1;
-    return lp - lq;
-  });
+  const order = byPriority(shuffle([...active]), st);
   const playing = order.slice(0, n * 4);
-  const waiting = order.slice(n * 4).map(p => p.id);
 
   // 2. 分到各場：試多次，挑重複最少的
   let best = null, bestScore = Infinity;
@@ -387,8 +407,106 @@ function makeRound(){
     });
     if(score < bestScore){ bestScore = score; best = courts; }
   }
-  return { courts: best, waiting };
+  return best;
 }
+
+// 上場順序：打最少場的優先，同場數時休息最久的優先
+function byPriority(list, st){
+  return list.sort((p, q) => {
+    const g = (st.games[p.id] || 0) - (st.games[q.id] || 0);
+    if(g) return g;
+    return (st.last[p.id] ?? -1) - (st.last[q.id] ?? -1);
+  });
+}
+// 目前在場上的人（可排除某一面場）
+function onCourt(except){
+  const s = new Set();
+  for(let ci = 0; ci < S.courts; ci++){
+    if(ci === except) continue;
+    const g = S.games[S.board[ci]];
+    if(S.board[ci] != null && g) [...g.a, ...g.b].forEach(id => s.add(id));
+  }
+  return s;
+}
+// 單一場地換下一組：從沒在打球的人裡挑 4 位
+function pickFour(ci, avoid){
+  const busy = onCourt(ci);
+  const avail = S.players.filter(p => p.active && !busy.has(p.id));
+  if(avail.length < 4) return null;
+  const st = stats();
+  const cand = byPriority(shuffle(avail), st).slice(0, 8);
+  let best = null, bs = Infinity;
+  // 重排時盡量不要排出跟剛剛一模一樣的組合
+  const pairKey = c => [c.a.slice().sort().join('+'), c.b.slice().sort().join('+')].sort().join('|');
+  const avoidSet = avoid ? [...avoid.a, ...avoid.b].sort().join(',') : null;
+  const avoidKey = avoid ? pairKey(avoid) : null;
+  // 等最久的那位一定上場，其餘從前幾位裡挑最合適的組合
+  for(let i = 1; i < cand.length; i++) for(let j = i + 1; j < cand.length; j++) for(let k = j + 1; k < cand.length; k++){
+    const g = [cand[0], cand[i], cand[j], cand[k]];
+    let sc = (i + j + k) * 2;
+    if(S.mode === 'close'){ const lv = g.map(eff); sc += (Math.max(...lv) - Math.min(...lv)) * 1.5; }
+    const r = splitTeams(g, st);
+    sc += r.score;
+    if(avoid){
+      if(pairKey(r.court) === avoidKey) sc += 1000;
+      else if(g.map(p => p.id).sort().join(',') === avoidSet) sc += 3;
+    }
+    if(sc < bs){ bs = sc; best = r.court; }
+  }
+  // 同一組人也試試其他分隊方式
+  if(avoid && best && pairKey(best) === avoidKey){
+    const ids = [...best.a, ...best.b];
+    const alt = [[0,2,1,3],[0,3,1,2]].map(([a, b, c, d]) => ({ a: [ids[a], ids[b]], b: [ids[c], ids[d]] })).find(x => pairKey(x) !== avoidKey);
+    if(alt) best = alt;
+  }
+  return best;
+}
+const snapshot = () => ({ games: JSON.parse(JSON.stringify(S.games)), board: S.board.slice(), tick: S.tick });
+function arrangeAll(){
+  const snap = snapshot();
+  const courts = makeRound(); if(!courts) return false;
+  S.tick++;
+  S.board = [];
+  courts.forEach((c, ci) => { S.games.push({ court: ci, a: c.a, b: c.b, t: S.tick }); S.board[ci] = S.games.length - 1; });
+  fresh = new Set(courts.map((_, i) => i));
+  S.undo = snap;
+  return true;
+}
+function arrangeCourt(ci){
+  const snap = snapshot();
+  const c = pickFour(ci);
+  if(!c){ toast('沒在打球的人不到 4 位，等其他場打完再排'); return false; }
+  S.tick++;
+  S.games.push({ court: ci, a: c.a, b: c.b, t: S.tick });
+  S.board[ci] = S.games.length - 1;
+  fresh = new Set([ci]);
+  S.undo = snap;
+  return true;
+}
+// 重排某一面場：把這場當作沒打過，重新挑人
+function rerollCourt(ci){
+  const gi = S.board[ci], old = S.games[gi];
+  if(gi == null || !old) return false;
+  const snap = snapshot();
+  S.games.splice(gi, 1);
+  S.board = S.board.map(x => x == null ? x : x === gi ? null : x > gi ? x - 1 : x);
+  const c = pickFour(ci, old);
+  if(!c){ S.games = snap.games; S.board = snap.board; S.tick = snap.tick; toast('可以換的人不夠，沒辦法重排'); return false; }
+  S.tick++;
+  S.games.push({ court: ci, a: c.a, b: c.b, t: S.tick });
+  S.board[ci] = S.games.length - 1;
+  fresh = new Set([ci]);
+  S.undo = snap;
+  return true;
+}
+function undoLast(){
+  const u = S.undo;
+  if(!u || !u.games){ S.undo = null; return null; }
+  S.games = u.games; S.board = u.board; S.tick = u.tick;
+  S.undo = null;
+  return u;
+}
+function resetPlay(){ S.games = []; S.board = []; S.tick = 0; S.undo = null; }
 
 // 4 人分兩隊：讓兩隊等級總和接近，並避免重複搭檔
 function splitTeams(g, st){
@@ -458,7 +576,10 @@ function render(){
   renderRosters();
   renderCurrent();
   renderHistory();
-  $('#redo').disabled = !S.rounds.length;
+  let live = false;
+  for(let i = 0; i < S.courts; i++) if(S.board[i] != null && S.games[S.board[i]]) live = true;
+  $('#next').hidden = live;
+  $('#undo').disabled = !S.undo;
 }
 
 const badge = p => S.mode === 'mix' ? '' : S.scale === 'tier'
@@ -471,38 +592,54 @@ const scoreText = c => S.mode === 'mix' ? '' : S.scale === 'tier' ? `狗派 ${pr
 
 function renderCurrent(){
   const box = $('#current');
-  const r = S.rounds[S.rounds.length - 1];
-  if(!r){
+  if(!S.games.length){
     box.innerHTML = `<div class="empty"><strong style="margin:0">還沒有排任何一輪</strong></div>`;
     return;
   }
-  box.innerHTML = `
-    <div class="roundtitle"><span class="big num">${S.rounds.length}</span><span class="lbl">第 ${S.rounds.length} 輪</span></div>
-    <div class="courts">${r.courts.map((c, i) => `
-      <div class="court${freshRound ? ' fresh' : ''}" style="animation-delay:${i * 70}ms">
-        <div class="tag"><b>場地 ${i + 1}</b><span class="score num">${scoreText(c)}</span></div>
+  const st = stats();
+  const busy = onCourt(-1);
+  const order = S.players.map((p, i) => ({ p, i }));
+  const waiting = order.filter(x => x.p.active && !busy.has(x.p.id)).sort((x, y) => {
+    const g = (st.games[x.p.id] || 0) - (st.games[y.p.id] || 0);
+    if(g) return g;
+    const l = (st.last[x.p.id] ?? -1) - (st.last[y.p.id] ?? -1);
+    return l || x.i - y.i;
+  }).map(x => x.p.id);
+  let cards = '';
+  for(let i = 0; i < S.courts; i++){
+    const gi = S.board[i], c = gi != null ? S.games[gi] : null;
+    const no = c ? S.games.slice(0, gi + 1).filter(x => x.court === i).length : 0;
+    cards += `
+      <div class="court${fresh.has(i) ? ' fresh' : ''}${c ? '' : ' idle'}">
+        <div class="tag"><b>場地 ${i + 1}${c ? `<small>第 ${no} 場</small>` : ''}</b><span class="score num">${c ? scoreText(c) : ''}</span></div>
         <div class="surface">
-          <div class="side a">${c.a.map(chip).join('')}</div>
-          <div class="side b">${c.b.map(chip).join('')}</div>
+          ${c ? `<div class="side a">${c.a.map(chip).join('')}</div><div class="side b">${c.b.map(chip).join('')}</div>` : '<div class="side a"></div><div class="side b"></div><span class="vacant">空場</span>'}
         </div>
-      </div>`).join('')}
-    </div>
-    <div class="wait"><h3>這輪休息（${r.waiting.length} 人）</h3>
-      <div class="chips">${r.waiting.length ? r.waiting.map(chip).join('') : '<span style="color:var(--muted)">全員上場</span>'}</div>
+        ${c
+          ? `<div class="cbtns"><button class="cbtn ghost" type="button" data-reroll="${i}">↻ 重排</button><button class="cbtn" type="button" data-court="${i}">這場打完，換下一組</button></div>`
+          : `<button class="cbtn" type="button" data-court="${i}">安排這場</button>`}
+      </div>`;
+  }
+  box.innerHTML = `
+    <div class="courts">${cards}</div>
+    <div class="wait"><h3>等待中（${waiting.length} 人，依上場順序）</h3>
+      <div class="chips">${waiting.length ? waiting.map(chip).join('') : '<span style="color:var(--muted)">全員都在場上</span>'}</div>
     </div>`;
-  freshRound = false;
+  fresh = new Set();
 }
 
 function renderHistory(){
   const h = $('#hist');
-  if(S.rounds.length < 2){ h.innerHTML = ''; return; }
+  const live = new Set();
+  for(let i = 0; i < S.courts; i++) if(S.board[i] != null) live.add(S.board[i]);
+  const done = S.games.map((g, i) => ({ g, i })).filter(x => !live.has(x.i));
+  if(!done.length){ h.innerHTML = ''; return; }
   const name = id => esc(byId(id)?.name || '（已移除）');
-  const items = S.rounds.slice(0, -1).map((r, ri) => ({ r, ri })).reverse().map(({ r, ri }) => `
-    <li><span class="rn num">${ri + 1}</span><div class="m">
-      ${r.courts.map((c, i) => `<div>場地 ${i + 1}：${c.a.map(name).join('、')}<span class="vs">對</span>${c.b.map(name).join('、')}</div>`).join('')}
-      ${r.waiting.length ? `<div class="rest">休息：${r.waiting.map(name).join('、')}</div>` : ''}
+  const items = done.reverse().map(({ g, i }) => `
+    <li><span class="rn num">${i + 1}</span><div class="m">
+      <div>場地 ${g.court + 1}：${g.a.map(name).join('、')}<span class="vs">對</span>${g.b.map(name).join('、')}</div>
     </div></li>`).join('');
-  h.innerHTML = `<h3>之前的輪次</h3><ol>${items}</ol>`;
+  h.innerHTML = `<h3>已結束的場次（${done.length} 場）</h3><ol>${items}</ol>`;
 }
 
 /* ---------- 事件 ---------- */
@@ -513,7 +650,16 @@ function addPlayer(name, level, tier){
   S.players.push(p);
   return true;
 }
-$('#addForm').addEventListener('submit', e => {
+// 有些嵌入環境會擋掉表單送出，改用按鈕點擊和 Enter 鍵觸發
+function onSubmit(form, fn){
+  const run = () => fn({ target: form, preventDefault(){} });
+  form.addEventListener('submit', e => { e.preventDefault(); run(); });
+  form.querySelector('[data-submit]').addEventListener('click', run);
+  form.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => {
+    if(e.key === 'Enter' && !e.isComposing){ e.preventDefault(); run(); }
+  }));
+}
+onSubmit($('#addForm'), e => {
   e.preventDefault();
   const f = e.target;
   const ok = S.mode === 'mix' ? addPlayer(f.name.value, 5, null) : addPlayer(f.name.value, f.level.value, S.scale === 'tier' ? f.tier.value : null);
@@ -612,16 +758,20 @@ $('#cDown').addEventListener('click', () => { S.courts = Math.max(1, S.courts - 
 document.querySelectorAll('.seg button[data-mode]').forEach(b => b.addEventListener('click', () => { S.mode = b.dataset.mode; save(); render(); }));
 document.querySelectorAll('.seg button[data-scale]').forEach(b => b.addEventListener('click', () => { S.scale = b.dataset.scale; save(); render(); }));
 $('#next').addEventListener('click', () => {
-  const r = makeRound(); if(!r) return;
-  S.rounds.push(r); freshRound = true; save(); render();
+  if(!arrangeAll()) return;
+  save(); render();
   window.scrollTo({ top: $('main').offsetTop - 10, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 });
-$('#redo').addEventListener('click', () => {
-  if(!S.rounds.length) return;
-  const old = S.rounds.pop();
-  const r = makeRound();
-  if(!r){ S.rounds.push(old); return; }
-  S.rounds.push(r); freshRound = true; save(); render(); toast('已重排這一輪');
+$('#undo').addEventListener('click', () => {
+  const u = undoLast(); if(!u) return;
+  save(); render(); toast('已復原上一步');
+});
+$('#current').addEventListener('click', e => {
+  const rr = e.target.closest('[data-reroll]');
+  if(rr){ const ci = +rr.dataset.reroll; if(rerollCourt(ci)){ save(); render(); toast(`場地 ${ci + 1} 重排了`); } return; }
+  const b = e.target.closest('.cbtn[data-court]'); if(!b) return;
+  const ci = +b.dataset.court;
+  if(arrangeCourt(ci)){ save(); render(); toast(`場地 ${ci + 1} 換下一組了`); }
 });
 const modal = $('#rosterModal');
 function openRosters(){ renderRosters(); modal.hidden = false; modal.querySelector('input').focus(); }
@@ -630,7 +780,7 @@ $('#openRosters').addEventListener('click', openRosters);
 $('#closeRosters').addEventListener('click', closeRosters);
 modal.addEventListener('click', e => { if(e.target === modal) closeRosters(); });
 document.addEventListener('keydown', e => { if(e.key === 'Escape' && !modal.hidden) closeRosters(); });
-$('#saveForm').addEventListener('submit', e => {
+onSubmit($('#saveForm'), e => {
   e.preventDefault();
   if(!S.players.length){ toast('名單是空的，先加入球員再儲存'); return; }
   const d = new Date();
@@ -653,18 +803,18 @@ $('#rlist').addEventListener('click', e => {
     const doLoad = () => {
       S.players = r.players.map(p => ({ id: 'p' + (S.seq++), name: p.name, level: clampLv(p.level), ...(p.tier ? { tier: p.tier } : {}), active: true }));
       if(r.scale) applyFmt(r.scale);
-      S.rounds = []; save(); render(); closeRosters(); toast(`已匯入「${r.name}」，共 ${r.players.length} 人`);
+      resetPlay(); save(); render(); closeRosters(); toast(`已匯入「${r.name}」，共 ${r.players.length} 人`);
     };
-    if(S.players.length || S.rounds.length) armed(e.target, '取代目前名單？', doLoad);
+    if(S.players.length || S.games.length) armed(e.target, '取代目前名單？', doLoad);
     else doLoad();
   }
 });
 $('#clearAll').addEventListener('click', e => {
-  armed(e.currentTarget, '確認刪除？', () => { S.players = []; S.rounds = []; save(); render(); toast('已刪除全部人員和輪次'); });
+  armed(e.currentTarget, '確認刪除？', () => { S.players = []; resetPlay(); save(); render(); toast('已刪除全部人員和場次紀錄'); });
 });
 $('#reset').addEventListener('click', e => {
-  if(!S.rounds.length){ toast('目前沒有輪次可以清除'); return; }
-  armed(e.currentTarget, '再按一次確認清除', () => { S.rounds = []; save(); render(); toast('已清除所有輪次，名單保留'); });
+  if(!S.games.length){ toast('目前沒有紀錄可以清除'); return; }
+  armed(e.currentTarget, '再按一次確認清除', () => { resetPlay(); save(); render(); toast('已清除所有場次紀錄，名單保留'); });
 });
 /* ---------- 常用名單（存在這台裝置的瀏覽器） ---------- */
 const RKEY = 'badminton-rosters-v1';
