@@ -48,8 +48,8 @@ button,input,select,textarea{font:inherit;color:inherit}
   .panel{padding:14px 12px}
   .pair{grid-template-columns:auto minmax(0,1fr)!important;row-gap:12px}
   .pair>div:last-child{grid-column:1/-1}
-  .h2row .hbtns{width:100%;justify-content:stretch}
-  .h2row .hbtns .btn{flex:1;padding:6px 4px}
+  .fold .hbtns{width:100%}
+  .fold .hbtns .btn{flex:1;padding:6px 4px}
   .courts{grid-template-columns:minmax(0,1fr)}
   .actions .btn{flex:1}
   .actions .btn.primary{flex-basis:100%}
@@ -139,6 +139,20 @@ details.bulk textarea{width:100%;min-height:110px;margin-top:8px;border:1px soli
 .pair label{display:block;color:var(--muted);font-size:13px;margin-bottom:4px}
 .pair .seg button{flex:1;padding:7px 2px;font-size:13px;white-space:nowrap}
 .pair.two{grid-template-columns:auto 1fr}
+.sidecol{display:flex;flex-direction:column;gap:14px}
+.fold h2{margin:0}
+.fhead{width:100%;display:flex;align-items:center;gap:10px;background:none;border:0;padding:2px 0;cursor:pointer;text-align:left;font-size:16px;font-weight:700;color:var(--ink)}
+.fhead .fsum{margin-left:auto;font-size:13px;font-weight:400;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.fhead[aria-expanded="true"] .fsum{display:none}
+.chev{flex:none;margin-left:auto;width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-135deg) translate(-2px,-2px);transition:transform .2s}
+.fhead[aria-expanded="false"] .fsum+.chev{margin-left:0}
+.fhead[aria-expanded="false"] .chev{transform:rotate(45deg) translate(-2px,-2px)}
+.fhead:hover .chev{border-color:var(--ink)}
+.fbody{margin-top:14px}
+.fbody[hidden]{display:none}
+.fold .hbtns{justify-content:flex-start;margin-bottom:12px}
+.fold .hbtns .btn{font-size:13px}
+@media (prefers-reduced-motion:reduce){.chev{transition:none}}
 .topbar{grid-column:1/-1;display:flex;justify-content:flex-end;margin-bottom:-12px}
 .sponsor{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:999px;background:var(--cork);color:var(--cork-ink);font-size:13px;font-weight:700;text-decoration:none;transition:transform .15s,filter .15s}
 .sponsor:hover{filter:brightness(1.05);transform:translateY(-1px)}
@@ -203,8 +217,10 @@ details.bulk textarea{width:100%;min-height:110px;margin-top:8px;border:1px soli
   <h1 class="sr-only">Badminton</h1>
   <div class="topbar"><a class="sponsor" href="https://portaly.cc/willy33316/support" target="_blank" rel="noopener">🏸 斗內一顆羽球</a></div>
 
-  <aside class="panel" aria-label="設定與名單">
-    <h2>場地設定</h2>
+  <div class="sidecol">
+  <section class="panel fold" aria-label="場地設定">
+    <h2><button class="fhead" type="button" data-fold="set" aria-expanded="true" aria-controls="setBody"><span>場地設定</span><span class="fsum" id="setSum"></span><span class="chev" aria-hidden="true"></span></button></h2>
+    <div class="fbody" id="setBody">
     <div class="pair">
       <div>
         <label>場地數</label>
@@ -229,15 +245,17 @@ details.bulk textarea{width:100%;min-height:110px;margin-top:8px;border:1px soli
         </div>
       </div>
     </div>
+    </div>
+  </section>
 
-    <div class="h2row">
-      <h2>球員名單</h2>
+  <section class="panel fold" aria-label="球員名單">
+    <h2><button class="fhead" type="button" data-fold="pl" aria-expanded="true" aria-controls="plBody"><span>球員名單</span><span class="fsum" id="plSum"></span><span class="chev" aria-hidden="true"></span></button></h2>
+    <div class="fbody" id="plBody">
       <div class="hbtns">
         <button class="btn danger" type="button" id="clearAll">刪除全部人員</button>
         <button class="btn" type="button" id="openBulk" aria-haspopup="dialog">貼上多人</button>
         <button class="btn" type="button" id="openRosters" aria-haspopup="dialog">常用名單</button>
       </div>
-    </div>
     <form class="add" id="addForm">
       <input name="name" placeholder="名字" autocomplete="off" required>
       <select name="level" class="num" aria-label="等級 1 到 15"><option>1</option><option>2</option><option>3</option><option>4</option><option selected>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option></select>
@@ -247,7 +265,9 @@ details.bulk textarea{width:100%;min-height:110px;margin-top:8px;border:1px soli
     <div class="listhead"><span class="hcheck">出席</span><span>名字</span><span id="lvHead">等級</span><span>場次</span><span></span></div>
     <ul class="plist" id="plist"></ul>
     <div class="count" id="count"></div>
-  </aside>
+    </div>
+  </section>
+  </div>
 
   <main>
     <div class="actions">
@@ -393,6 +413,14 @@ function render(){
   document.querySelectorAll('.seg button[data-scale]').forEach(b => b.setAttribute('aria-pressed', b.dataset.scale === S.scale));
   const tierMode = S.scale === 'tier';
   const mixMode = S.mode === 'mix';
+  S.fold = S.fold || {};
+  document.querySelectorAll('.fhead').forEach(b => {
+    const shut = !!S.fold[b.dataset.fold];
+    b.setAttribute('aria-expanded', !shut);
+    $('#' + b.getAttribute('aria-controls')).hidden = shut;
+  });
+  $('#setSum').textContent = `${S.courts} 面場，${mixMode ? '混打' : '等級，' + (tierMode ? '特級／一般' : '1–15')}`;
+  $('#plSum').textContent = `出席 ${S.players.filter(p => p.active).length}／${S.players.length} 人`;
   $('#scaleBox').hidden = mixMode;
   document.querySelector('.pair').classList.toggle('two', mixMode);
   $('#lvHead').textContent = mixMode ? '' : '等級';
@@ -574,6 +602,11 @@ $('#plist').addEventListener('click', e => {
   const p = byId(id);
   armed(e.target, '移除', () => { S.players = S.players.filter(x => x.id !== id); save(); render(); toast(`已移除 ${p.name}`); });
 });
+document.querySelectorAll('.fhead').forEach(b => b.addEventListener('click', () => {
+  S.fold = S.fold || {};
+  S.fold[b.dataset.fold] = !S.fold[b.dataset.fold];
+  save(); render();
+}));
 $('#cUp').addEventListener('click', () => { S.courts = Math.min(20, S.courts + 1); save(); render(); });
 $('#cDown').addEventListener('click', () => { S.courts = Math.max(1, S.courts - 1); save(); render(); });
 document.querySelectorAll('.seg button[data-mode]').forEach(b => b.addEventListener('click', () => { S.mode = b.dataset.mode; save(); render(); }));
