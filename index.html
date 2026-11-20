@@ -89,15 +89,20 @@ details.bulk summary{cursor:pointer;color:var(--muted);font-size:14px}
 details.bulk textarea{width:100%;min-height:110px;margin-top:8px;border:1px solid var(--rule);border-radius:8px;padding:8px;background:var(--bg);resize:vertical}
 
 .plist{list-style:none;margin:0;padding:0;max-height:52vh;overflow:auto;border-top:1px solid var(--rule)}
-.plist li{display:grid;grid-template-columns:24px 1fr 64px 40px minmax(28px,auto);gap:8px;align-items:center;padding:7px 2px;border-bottom:1px solid var(--rule)}
+.plist li{display:grid;grid-template-columns:24px 1fr 64px 78px minmax(28px,auto);gap:8px;align-items:center;padding:7px 2px;border-bottom:1px solid var(--rule)}
 .plist li.off .pname{color:var(--muted);text-decoration:line-through}
 .plist input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
 .pname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .plist select.lvsel{width:100%;border:1px solid var(--rule);border-radius:6px;padding:4px;text-align:center;text-align-last:center;background:var(--bg)}
-.games{text-align:right;color:var(--muted);font-size:17px}
+.games{display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:17px}
+.games span{min-width:22px;text-align:center;color:var(--ink)}
+.gbtn{width:24px;height:24px;border:1px solid var(--rule);border-radius:6px;background:var(--bg);color:var(--ink);cursor:pointer;line-height:1;padding:0;font-size:15px}
+.gbtn:disabled{opacity:.35;cursor:default}
+.listhead span:nth-child(4){text-align:center!important}
+.cbtn:disabled{opacity:.4;cursor:default}
 .del{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:18px;line-height:1}
 .del:hover{color:var(--danger)}
-.listhead{display:grid;grid-template-columns:24px 1fr 64px 40px minmax(28px,auto);gap:8px;font-size:12px;color:var(--muted);padding:0 2px 4px}
+.listhead{display:grid;grid-template-columns:24px 1fr 64px 78px minmax(28px,auto);gap:8px;font-size:12px;color:var(--muted);padding:0 2px 4px}
 .listhead span:nth-child(3){text-align:center}.listhead span:nth-child(4){text-align:right}
 .count{color:var(--muted);font-size:14px;margin-top:10px}
 
@@ -283,8 +288,7 @@ details.bulk textarea{width:100%;min-height:110px;margin-top:8px;border:1px soli
 
   <main>
     <div class="actions">
-      <button class="btn primary" id="next">排下一輪</button>
-      <button class="btn" id="undo">復原</button>
+      <button class="btn primary" id="next">開始</button>
       <button class="btn ghost" id="reset">清除所有紀錄</button>
     </div>
     <div id="current"></div>
@@ -372,6 +376,8 @@ function stats(){
     [c.a, c.b].forEach(([x, y]) => { const k = [x, y].sort().join('|'); partner[k] = (partner[k] || 0) + 1; });
     for(let i = 0; i < 4; i++) for(let j = i + 1; j < 4; j++){ const k = [all[i], all[j]].sort().join('|'); met[k] = (met[k] || 0) + 1; }
   });
+  // 手動調整的場次
+  S.players.forEach(p => { if(p.adj) games[p.id] = Math.max(0, (games[p.id] || 0) + p.adj); });
   return { games, last, partner, met };
 }
 
@@ -461,52 +467,83 @@ function pickFour(ci, avoid){
   }
   return best;
 }
-const snapshot = () => ({ games: JSON.parse(JSON.stringify(S.games)), board: S.board.slice(), tick: S.tick });
+// ---------- 每面場各自的復原 ----------
+const keyOf = g => ({ t: g.t, court: g.court });
+const findKey = k => S.games.findIndex(g => g.t === k.t && g.court === k.court);
+function removeGameAt(gi){
+  S.games.splice(gi, 1);
+  S.board = S.board.map(x => x == null ? x : x === gi ? null : x > gi ? x - 1 : x);
+}
+function insertGame(g){
+  let pos = S.games.findIndex(x => x.t > g.t); if(pos < 0) pos = S.games.length;
+  S.games.splice(pos, 0, g);
+  S.board = S.board.map(x => x == null ? x : x >= pos ? x + 1 : x);
+  return pos;
+}
+function setUndo(ci, newGame, prev, removed){
+  S.cundo = S.cundo || [];
+  S.cundo[ci] = { key: keyOf(newGame), prev: prev ? (removed ? JSON.parse(JSON.stringify(prev)) : keyOf(prev)) : null, removed: !!removed };
+}
 function arrangeAll(){
-  const snap = snapshot();
   const courts = makeRound(); if(!courts) return false;
+  const prevs = []; for(let ci = 0; ci < S.courts; ci++) prevs[ci] = S.games[S.board[ci]] || null;
   S.tick++;
   S.board = [];
-  courts.forEach((c, ci) => { S.games.push({ court: ci, a: c.a, b: c.b, t: S.tick }); S.board[ci] = S.games.length - 1; });
+  courts.forEach((c, ci) => {
+    const g = { court: ci, a: c.a, b: c.b, t: S.tick };
+    S.games.push(g); S.board[ci] = S.games.length - 1;
+    setUndo(ci, g, prevs[ci], false);
+  });
   fresh = new Set(courts.map((_, i) => i));
-  S.undo = snap;
   return true;
 }
 function arrangeCourt(ci){
-  const snap = snapshot();
   const c = pickFour(ci);
   if(!c){ toast('沒在打球的人不到 4 位，等其他場打完再排'); return false; }
+  const prev = S.board[ci] != null ? S.games[S.board[ci]] : null;
   S.tick++;
-  S.games.push({ court: ci, a: c.a, b: c.b, t: S.tick });
-  S.board[ci] = S.games.length - 1;
+  const g = { court: ci, a: c.a, b: c.b, t: S.tick };
+  S.games.push(g); S.board[ci] = S.games.length - 1;
+  setUndo(ci, g, prev, false);
   fresh = new Set([ci]);
-  S.undo = snap;
   return true;
 }
 // 重排某一面場：把這場當作沒打過，重新挑人
 function rerollCourt(ci){
   const gi = S.board[ci], old = S.games[gi];
   if(gi == null || !old) return false;
-  const snap = snapshot();
-  S.games.splice(gi, 1);
-  S.board = S.board.map(x => x == null ? x : x === gi ? null : x > gi ? x - 1 : x);
+  // 連續重排時，復原要回到第一次重排之前的樣子
+  const u = S.cundo && S.cundo[ci];
+  const chain = u && u.removed && findKey(u.key) === gi;
+  const keep = { games: S.games.slice(), board: S.board.slice() };
+  removeGameAt(gi);
   const c = pickFour(ci, old);
-  if(!c){ S.games = snap.games; S.board = snap.board; S.tick = snap.tick; toast('可以換的人不夠，沒辦法重排'); return false; }
+  if(!c){ S.games = keep.games; S.board = keep.board; toast('可以換的人不夠，沒辦法重排'); return false; }
   S.tick++;
-  S.games.push({ court: ci, a: c.a, b: c.b, t: S.tick });
-  S.board[ci] = S.games.length - 1;
+  const g = { court: ci, a: c.a, b: c.b, t: S.tick };
+  S.games.push(g); S.board[ci] = S.games.length - 1;
+  if(chain) S.cundo[ci] = { key: keyOf(g), prev: u.prev, removed: true };
+  else setUndo(ci, g, old, true);
   fresh = new Set([ci]);
-  S.undo = snap;
   return true;
 }
-function undoLast(){
-  const u = S.undo;
-  if(!u || !u.games){ S.undo = null; return null; }
-  S.games = u.games; S.board = u.board; S.tick = u.tick;
-  S.undo = null;
-  return u;
+function undoCourt(ci){
+  const u = S.cundo && S.cundo[ci]; if(!u) return false;
+  const prevGame = u.prev ? (u.removed ? u.prev : S.games[findKey(u.prev)]) : null;
+  if(prevGame){
+    const busy = onCourt(ci);
+    const clash = [...prevGame.a, ...prevGame.b].filter(id => busy.has(id));
+    if(clash.length){ toast(`${clash.map(id => byId(id)?.name || '有人').join('、')} 已經在別的場地，沒辦法復原`); return false; }
+  }
+  const ni = findKey(u.key);
+  if(ni >= 0) removeGameAt(ni);
+  // 先算出位置再寫回，insertGame 會換掉 S.board
+  const idx = prevGame ? (u.removed ? insertGame(prevGame) : findKey(u.prev)) : null;
+  S.board[ci] = idx;
+  S.cundo[ci] = null;
+  return true;
 }
-function resetPlay(){ S.games = []; S.board = []; S.tick = 0; S.undo = null; }
+function resetPlay(){ S.games = []; S.board = []; S.tick = 0; S.cundo = []; delete S.undo; S.players.forEach(p => delete p.adj); }
 
 // 4 人分兩隊：讓兩隊等級總和接近，並避免重複搭檔
 function splitTeams(g, st){
@@ -562,7 +599,7 @@ function render(){
         ${mixMode ? '<span></span>' : tierMode
           ? `<button type="button" class="tierbtn ${tierOf(p)}" aria-label="${esc(p.name)} 目前是${tierOf(p) === 'pro' ? '狗派' : '貓派'}，點一下切換">${tierOf(p) === 'pro' ? '狗派' : '貓派'}</button>`
           : `<select class="lvsel num" aria-label="${esc(p.name)} 等級">${Array.from({ length: 15 }, (_, i) => `<option${i + 1 === p.level ? ' selected' : ''}>${i + 1}</option>`).join('')}</select>`}
-        <span class="games num">${st.games[p.id] || 0}</span>
+        <span class="games num"><button type="button" class="gbtn" data-d="-1" aria-label="${esc(p.name)} 場次減一" ${(st.games[p.id] || 0) ? '' : 'disabled'}>−</button><span>${st.games[p.id] || 0}</span><button type="button" class="gbtn" data-d="1" aria-label="${esc(p.name)} 場次加一">+</button></span>
         <button class="del" type="button" aria-label="移除 ${esc(p.name)}">×</button>
       </li>`).join('');
   }
@@ -579,7 +616,6 @@ function render(){
   let live = false;
   for(let i = 0; i < S.courts; i++) if(S.board[i] != null && S.games[S.board[i]]) live = true;
   $('#next').hidden = live;
-  $('#undo').disabled = !S.undo;
 }
 
 const badge = p => S.mode === 'mix' ? '' : S.scale === 'tier'
@@ -615,9 +651,11 @@ function renderCurrent(){
         <div class="surface">
           ${c ? `<div class="side a">${c.a.map(chip).join('')}</div><div class="side b">${c.b.map(chip).join('')}</div>` : '<div class="side a"></div><div class="side b"></div><span class="vacant">空場</span>'}
         </div>
-        ${c
-          ? `<div class="cbtns"><button class="cbtn ghost" type="button" data-reroll="${i}">↻ 重排</button><button class="cbtn" type="button" data-court="${i}">這場打完，換下一組</button></div>`
-          : `<button class="cbtn" type="button" data-court="${i}">安排這場</button>`}
+        <div class="cbtns">
+          <button class="cbtn ghost" type="button" data-undo="${i}" ${S.cundo && S.cundo[i] ? '' : 'disabled'} aria-label="復原場地 ${i + 1}">↶ 復原</button>
+          ${c ? `<button class="cbtn ghost" type="button" data-reroll="${i}" aria-label="重排場地 ${i + 1}">↻ 重排</button>` : ''}
+          <button class="cbtn" type="button" data-court="${i}">${c ? '這場打完，換下一組' : '安排這場'}</button>
+        </div>
       </div>`;
   }
   box.innerHTML = `
@@ -741,6 +779,14 @@ $('#plist').addEventListener('change', e => {
   save(); render();
 });
 $('#plist').addEventListener('click', e => {
+  const gb = e.target.closest('.gbtn');
+  if(gb){
+    const p = byId(gb.closest('li').dataset.id), d = +gb.dataset.d;
+    const now = stats().games[p.id] || 0;
+    if(d < 0 && now <= 0) return;
+    p.adj = (p.adj || 0) + d;
+    save(); render(); return;
+  }
   const tb = e.target.closest('.tierbtn');
   if(tb){ const p = byId(tb.closest('li').dataset.id); p.tier = tierOf(p) === 'pro' ? 'reg' : 'pro'; save(); render(); return; }
   if(!e.target.classList.contains('del')) return;
@@ -762,11 +808,9 @@ $('#next').addEventListener('click', () => {
   save(); render();
   window.scrollTo({ top: $('main').offsetTop - 10, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 });
-$('#undo').addEventListener('click', () => {
-  const u = undoLast(); if(!u) return;
-  save(); render(); toast('已復原上一步');
-});
 $('#current').addEventListener('click', e => {
+  const ub = e.target.closest('[data-undo]');
+  if(ub){ const ci = +ub.dataset.undo; if(undoCourt(ci)){ save(); render(); toast(`場地 ${ci + 1} 已復原`); } return; }
   const rr = e.target.closest('[data-reroll]');
   if(rr){ const ci = +rr.dataset.reroll; if(rerollCourt(ci)){ save(); render(); toast(`場地 ${ci + 1} 重排了`); } return; }
   const b = e.target.closest('.cbtn[data-court]'); if(!b) return;
