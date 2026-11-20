@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>baldminton</title>
+<title>Badminton</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
@@ -139,6 +139,10 @@ details.bulk textarea{width:100%;min-height:110px;margin-top:8px;border:1px soli
 .pair label{display:block;color:var(--muted);font-size:13px;margin-bottom:4px}
 .pair .seg button{flex:1;padding:7px 2px;font-size:13px;white-space:nowrap}
 .pair.two{grid-template-columns:auto 1fr}
+.topbar{grid-column:1/-1;display:flex;justify-content:flex-end;margin-bottom:-12px}
+.sponsor{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:999px;background:var(--cork);color:var(--cork-ink);font-size:13px;font-weight:700;text-decoration:none;transition:transform .15s,filter .15s}
+.sponsor:hover{filter:brightness(1.05);transform:translateY(-1px)}
+@media (prefers-reduced-motion:reduce){.sponsor{transition:none}.sponsor:hover{transform:none}}
 /* 關掉點兩下放大（仍保留兩指縮放） */
 *{touch-action:manipulation}
 /* iPhone 輸入框字小於 16px 時點下去會自動放大 */
@@ -196,7 +200,8 @@ details.bulk textarea{width:100%;min-height:110px;margin-top:8px;border:1px soli
 </head>
 <body>
 <div class="wrap">
-  <h1 class="sr-only">羽球場地輪替排點</h1>
+  <h1 class="sr-only">Badminton</h1>
+  <div class="topbar"><a class="sponsor" href="https://portaly.cc/willy33316/support" target="_blank" rel="noopener">🏸 斗內一顆羽球</a></div>
 
   <aside class="panel" aria-label="設定與名單">
     <h2>場地設定</h2>
