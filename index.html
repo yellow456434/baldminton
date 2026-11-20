@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>baldminton</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4F5F4; --surface:#FFFFFF; --ink:#2B3138; --muted:#737B84; --rule:#E2E5E7;
+  --accent:#4F6D8F; --accent-deep:#425D7B; --on-accent:#FFFFFF;
+  --court:#5E8C78; --court-deep:#4C7564; --line:#F7FAF8; --cork:#EBC983; --cork-ink:#4A3815;
+  --danger:#C2665A;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#1A1C1F; --surface:#23262A; --ink:#DCE0E4; --muted:#979EA6; --rule:#33373C;
+    --accent:#8FA8C8; --accent-deep:#A3B9D5; --on-accent:#18202B;
+    --court:#3E6656; --court-deep:#33574A; --line:#D9E0DC; --cork:#D6B36E; --cork-ink:#2E2309;
+    --danger:#C9756A; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1A1C1F; --surface:#23262A; --ink:#DCE0E4; --muted:#979EA6; --rule:#33373C;
+  --accent:#8FA8C8; --accent-deep:#A3B9D5; --on-accent:#18202B;
+  --court:#3E6656; --court-deep:#33574A; --line:#D9E0DC; --cork:#D6B36E; --cork-ink:#2E2309;
+  --danger:#C9756A; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;font-size:15px;line-height:1.55}
+.num{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--cork);outline-offset:2px}
+
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 48px;display:grid;gap:24px;grid-template-columns:410px 1fr;align-items:start}
+@media (max-width:860px){.wrap{grid-template-columns:minmax(0,1fr)}}
+.wrap>*{min-width:0}
+@media (max-width:520px){
+  .wrap{padding:14px 12px 40px;gap:18px}
+  header.top h1{font-size:24px}
+  .panel{padding:14px 12px}
+  .pair{grid-template-columns:auto minmax(0,1fr)!important;row-gap:12px}
+  .pair>div:last-child{grid-column:1/-1}
+  .h2row .hbtns{width:100%;justify-content:stretch}
+  .h2row .hbtns .btn{flex:1;padding:6px 4px}
+  .courts{grid-template-columns:minmax(0,1fr)}
+  .actions .btn{flex:1}
+  .actions .btn.primary{flex-basis:100%}
+  .chip{font-size:14px}
+  .hist li{grid-template-columns:36px minmax(0,1fr)}
+}
+
+header.top{grid-column:1/-1;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+header.top h1{margin:0;font-size:28px;font-weight:700;letter-spacing:.02em}
+header.top p{margin:0;color:var(--muted)}
+
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:16px}
+.panel h2{font-size:16px;margin:0 0 12px}
+.field{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.field label{color:var(--muted)}
+.stepper{display:flex;align-items:center;border:1px solid var(--rule);border-radius:8px;overflow:hidden}
+.stepper button{width:36px;height:36px;border:0;background:transparent;cursor:pointer;font-size:18px}
+.stepper button:hover{background:var(--bg)}
+.stepper span{min-width:36px;text-align:center;font-size:22px;font-weight:700}
+.seg{display:flex;border:1px solid var(--rule);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:7px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.hint{font-size:13px;color:var(--muted);margin:-4px 0 12px}
+
+.add{display:flex;gap:8px;margin-bottom:8px}
+.add input{min-width:0;border:1px solid var(--rule);border-radius:8px;padding:8px 10px;background:var(--bg)}
+.add input[name=name]{flex:1}
+.add select[name=level]{width:64px;text-align:center}
+.btn{border:1px solid var(--rule);background:var(--surface);border-radius:8px;padding:8px 14px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
+.btn.primary:hover{background:var(--accent-deep);border-color:var(--accent-deep)}
+.btn.ghost{border-color:transparent;color:var(--muted)}
+.btn.ghost:hover{color:var(--danger);border-color:transparent}
+details.bulk{margin:4px 0 12px}
+details.bulk summary{cursor:pointer;color:var(--muted);font-size:14px}
+details.bulk textarea{width:100%;min-height:110px;margin-top:8px;border:1px solid var(--rule);border-radius:8px;padding:8px;background:var(--bg);resize:vertical}
+
+.plist{list-style:none;margin:0;padding:0;max-height:52vh;overflow:auto;border-top:1px solid var(--rule)}
+.plist li{display:grid;grid-template-columns:24px 1fr 64px 40px minmax(28px,auto);gap:8px;align-items:center;padding:7px 2px;border-bottom:1px solid var(--rule)}
+.plist li.off .pname{color:var(--muted);text-decoration:line-through}
+.plist input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
+.pname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plist select.lvsel{width:100%;border:1px solid var(--rule);border-radius:6px;padding:4px;text-align:center;text-align-last:center;background:var(--bg)}
+.games{text-align:right;color:var(--muted);font-size:17px}
+.del{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:18px;line-height:1}
+.del:hover{color:var(--danger)}
+.listhead{display:grid;grid-template-columns:24px 1fr 64px 40px minmax(28px,auto);gap:8px;font-size:12px;color:var(--muted);padding:0 2px 4px}
+.listhead span:nth-child(3){text-align:center}.listhead span:nth-child(4){text-align:right}
+.count{color:var(--muted);font-size:14px;margin-top:10px}
+
+.tierbtn{width:100%;border:1px solid var(--rule);border-radius:6px;padding:3px 0;background:var(--bg);cursor:pointer;font-size:13px;color:var(--muted)}
+.tierbtn.pro{background:var(--cork);border-color:var(--cork);color:var(--cork-ink);font-weight:700}
+.chip .lv:not(.num){font-size:13px;padding:1px 7px}
+.chip .lv.reg{background:var(--bg);color:var(--muted);font-weight:500}
+.add select{border:1px solid var(--rule);border-radius:8px;padding:8px 6px;background:var(--bg)}
+
+.del[data-armed]{color:var(--danger);font-size:13px;font-weight:700;white-space:nowrap}
+.btn.ghost[data-armed],.btn[data-armed]{color:var(--danger);border-color:var(--danger);font-weight:700}
+
+.rlist{list-style:none;margin:0;padding:0;max-height:50vh;overflow:auto}
+.h2row{display:flex;justify-content:space-between;align-items:center;margin:18px 0 12px}
+.h2row h2{margin:0}
+.h2row .btn{padding:5px 12px;font-size:14px}
+.overlay{position:fixed;inset:0;z-index:15;background:rgba(10,20,15,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+.overlay[hidden]{display:none}
+.modal{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:16px;width:100%;max-width:440px;max-height:85vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+.mhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.mhead h2{margin:0;font-size:17px}
+.mhead .del{font-size:24px;padding:0 4px}
+.hbtns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.h2row{flex-wrap:wrap;gap:8px}
+.h2row .hbtns .btn{padding:5px 10px;font-size:13px}
+.btn.danger{background:var(--danger);border-color:var(--danger);color:#fff;font-weight:700}
+.btn.danger:hover{filter:brightness(.92)}
+.btn.danger[data-armed]{background:var(--surface);color:var(--danger);border-color:var(--danger)}
+.modal textarea{width:100%;min-height:200px;border:1px solid var(--rule);border-radius:8px;padding:8px 10px;background:var(--bg);resize:vertical;line-height:1.6}
+.rlist li{display:grid;grid-template-columns:1fr auto minmax(28px,auto);gap:8px;align-items:center;padding:7px 2px;border-top:1px solid var(--rule)}
+.rlist .rn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rlist .rn small{color:var(--muted);margin-left:6px}
+.rlist .btn{padding:4px 12px}
+.rempty{color:var(--muted);font-size:13px;margin:0}
+
+.pair{display:grid;grid-template-columns:auto 1fr 1fr;gap:10px;margin-bottom:4px}
+.pair .stepper button{width:30px;height:34px}
+.pair .stepper span{min-width:28px;font-size:20px}
+.pair label{display:block;color:var(--muted);font-size:13px;margin-bottom:4px}
+.pair .seg button{flex:1;padding:7px 2px;font-size:13px;white-space:nowrap}
+.pair.two{grid-template-columns:auto 1fr}
+/* 關掉點兩下放大（仍保留兩指縮放） */
+*{touch-action:manipulation}
+/* iPhone 輸入框字小於 16px 時點下去會自動放大 */
+@media (max-width:860px){input,select,textarea{font-size:16px!important}}
+.hcheck{white-space:nowrap;text-align:center;margin-left:-3px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.chip:not(:has(.lv)){padding-right:11px}
+
+/* Main area */
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.actions .btn.primary{font-size:17px;padding:11px 22px}
+.roundtitle{display:flex;align-items:baseline;gap:12px;margin:0 0 12px}
+.roundtitle .big{font-size:52px;font-weight:700;line-height:1;color:var(--accent)}
+.roundtitle .lbl{font-size:18px;font-weight:700}
+
+.courts{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.court{background:var(--court);border-radius:6px;padding:10px;color:#fff;position:relative}
+.court .tag{display:flex;justify-content:space-between;align-items:baseline;padding:0 4px 8px}
+.court .tag b{font-size:15px}
+.court .tag .score{font-size:20px}
+.surface{position:relative;aspect-ratio:2.2/1;border:2px solid var(--line);display:grid;grid-template-columns:1fr 1fr}
+/* court markings */
+.surface::before{content:"";position:absolute;inset:8% 0;border-top:1.5px solid var(--line);border-bottom:1.5px solid var(--line);pointer-events:none}
+.side{position:relative;display:flex;flex-direction:column;justify-content:center;gap:8px;padding:8px 10px}
+.side.a{border-right:3px dashed var(--line)}
+.side.a::after,.side.b::after{content:"";position:absolute;top:8%;bottom:8%;width:0;border-left:1.5px solid var(--line);pointer-events:none}
+.side.a::after{right:30%}.side.b::after{left:30%}
+.side.a{align-items:flex-start}.side.b{align-items:flex-end}
+.chip{position:relative;z-index:1;display:inline-flex;align-items:center;gap:6px;background:var(--surface);color:var(--ink);border-radius:999px;padding:3px 4px 3px 11px;max-width:100%;box-shadow:0 1px 0 var(--court-deep)}
+.chip .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.chip .lv{background:var(--cork);color:var(--cork-ink);border-radius:999px;min-width:26px;text-align:center;font-size:15px;font-weight:700;padding:0 6px}
+.court.fresh{animation:land .45s ease-out both}
+@keyframes land{from{transform:translateY(6px);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.court.fresh{animation:none}}
+
+.wait{margin-top:18px}
+.wait h3,.hist h3{font-size:15px;margin:0 0 8px}
+.wait .chips{display:flex;flex-wrap:wrap;gap:8px}
+.wait .chip{box-shadow:none;border:1px solid var(--rule)}
+
+.empty{border:2px dashed var(--rule);border-radius:10px;padding:32px 20px;text-align:center;color:var(--muted)}
+.empty strong{display:block;color:var(--ink);font-size:17px;margin-bottom:6px}
+
+.hist{margin-top:28px}
+.hist ol{list-style:none;margin:0;padding:0}
+.hist li{display:grid;grid-template-columns:56px 1fr;gap:10px;padding:10px 0;border-top:1px solid var(--rule)}
+.hist .rn{font-size:22px;font-weight:700;color:var(--muted)}
+.hist .m{font-size:14px}
+.hist .m div{margin-bottom:2px}
+.hist .vs{color:var(--muted);margin:0 6px}
+.hist .rest{color:var(--muted);font-size:13px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="sr-only">羽球場地輪替排點</h1>
+
+  <aside class="panel" aria-label="設定與名單">
+    <h2>場地設定</h2>
+    <div class="pair">
+      <div>
+        <label>場地數</label>
+        <div class="stepper">
+          <button type="button" id="cDown" aria-label="減少場地">−</button>
+          <span class="num" id="courtN">2</span>
+          <button type="button" id="cUp" aria-label="增加場地">+</button>
+        </div>
+      </div>
+      <div>
+        <label>分組方式</label>
+        <div class="seg" role="group" aria-label="分組方式">
+          <button type="button" data-mode="close">等級</button>
+          <button type="button" data-mode="mix">混打</button>
+        </div>
+      </div>
+      <div id="scaleBox">
+        <label>等級制度</label>
+        <div class="seg" role="group" aria-label="等級制度">
+          <button type="button" data-scale="fine">1–15</button>
+          <button type="button" data-scale="tier">特級／一般</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="h2row">
+      <h2>球員名單</h2>
+      <div class="hbtns">
+        <button class="btn danger" type="button" id="clearAll">刪除全部人員</button>
+        <button class="btn" type="button" id="openBulk" aria-haspopup="dialog">貼上多人</button>
+        <button class="btn" type="button" id="openRosters" aria-haspopup="dialog">常用名單</button>
+      </div>
+    </div>
+    <form class="add" id="addForm">
+      <input name="name" placeholder="名字" autocomplete="off" required>
+      <select name="level" class="num" aria-label="等級 1 到 15"><option>1</option><option>2</option><option>3</option><option>4</option><option selected>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option></select>
+      <select name="tier" aria-label="等級"><option value="reg">一般廚師</option><option value="pro">特級廚師</option></select>
+      <button class="btn" type="submit">加入</button>
+    </form>
+    <div class="listhead"><span class="hcheck">出席</span><span>名字</span><span id="lvHead">等級</span><span>場次</span><span></span></div>
+    <ul class="plist" id="plist"></ul>
+    <div class="count" id="count"></div>
+  </aside>
+
+  <main>
+    <div class="actions">
+      <button class="btn primary" id="next">排下一輪</button>
+      <button class="btn" id="redo">重排這一輪</button>
+      <button class="btn ghost" id="reset">清除所有輪次</button>
+    </div>
+    <div id="current"></div>
+    <section class="hist" id="hist"></section>
+  </main>
+</div>
+<div class="overlay" id="bulkModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="bulkTitle">
+    <div class="mhead">
+      <h2 id="bulkTitle">貼上多人</h2>
+      <button class="del" type="button" id="closeBulk" aria-label="關閉">×</button>
+    </div>
+    <textarea id="bulkText" placeholder=""></textarea>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn primary" type="button" id="bulkAdd">全部加入</button>
+      <select class="btn" id="bulkRoster" aria-label="導入常用名單"></select>
+      <button class="btn ghost" type="button" id="bulkClear">清空</button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="rosterModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="rosterTitle">
+    <div class="mhead">
+      <h2 id="rosterTitle">常用名單</h2>
+      <button class="del" type="button" id="closeRosters" aria-label="關閉">×</button>
+    </div>
+    <form class="add" id="saveForm">
+      <input name="rname" placeholder="名單名稱，例如：週三球團" autocomplete="off" style="flex:1">
+      <button class="btn" type="submit">儲存目前名單</button>
+    </form>
+    <ul class="rlist" id="rlist"></ul>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const KEY = 'badminton-rotation-v1';
+let S = load() || { courts: 2, mode: 'close', scale: 'fine', players: [], rounds: [], seq: 1 };
+if(!S.scale) S.scale = 'fine';
+let freshRound = false;
+
+function load(){ try{ const t = localStorage.getItem(KEY); return t ? JSON.parse(t) : null; }catch(e){ return null; } }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+
+const $ = s => document.querySelector(s);
+const byId = id => S.players.find(p => p.id === id);
+const clampLv = v => Math.min(15, Math.max(1, Math.round(Number(v) || 8)));
+// 特級／一般：有手動設定就用設定，否則由 1–15 等級推算（9 以上算特級）
+const tierOf = p => p.tier || (p.level >= 9 ? 'pro' : 'reg');
+// 排點用的實力值：二分法時特級 10、一般 5
+const eff = p => S.mode === 'mix' ? 5 : S.scale === 'tier' ? (tierOf(p) === 'pro' ? 10 : 5) : p.level;
+// 目前的名單格式：none＝隨機混打不分等級
+const curFmt = () => S.mode === 'mix' ? 'none' : S.scale;
+function applyFmt(f){ if(f === 'none') S.mode = 'mix'; else { if(S.mode === 'mix') S.mode = 'close'; S.scale = f; } }
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 1800); }
+// 兩段式確認：第一下按鈕變成確認文字，3 秒內再按一次才執行
+function armed(btn, label, action){
+  if(btn.dataset.armed){ clearTimeout(btn._t); delete btn.dataset.armed; btn.textContent = btn._orig; action(); return; }
+  btn._orig = btn.textContent; btn.dataset.armed = '1'; btn.textContent = label;
+  btn._t = setTimeout(() => { delete btn.dataset.armed; btn.textContent = btn._orig; }, 3000);
+}
+function shuffle(a){ for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+/* ---------- 統計：從輪次紀錄推算 ---------- */
+function stats(){
+  const games = {}, last = {}, partner = {}, met = {};
+  S.rounds.forEach((r, ri) => r.courts.forEach(c => {
+    const all = [...c.a, ...c.b];
+    all.forEach(id => { games[id] = (games[id] || 0) + 1; last[id] = ri; });
+    [c.a, c.b].forEach(([x, y]) => { const k = [x, y].sort().join('|'); partner[k] = (partner[k] || 0) + 1; });
+    for(let i = 0; i < 4; i++) for(let j = i + 1; j < 4; j++){ const k = [all[i], all[j]].sort().join('|'); met[k] = (met[k] || 0) + 1; }
+  }));
+  return { games, last, partner, met };
+}
+
+/* ---------- 排點核心 ---------- */
+function makeRound(){
+  const active = S.players.filter(p => p.active);
+  const n = Math.min(S.courts, Math.floor(active.length / 4));
+  if(n < 1){ toast('出席人數至少要 4 人才能排一場'); return null; }
+  const st = stats();
+
+  // 1. 誰上場：打最少場的優先，再來是休息最久的
+  const order = shuffle([...active]).sort((p, q) => {
+    const g = (st.games[p.id] || 0) - (st.games[q.id] || 0);
+    if(g) return g;
+    const lp = st.last[p.id] ?? -1, lq = st.last[q.id] ?? -1;
+    return lp - lq;
+  });
+  const playing = order.slice(0, n * 4);
+  const waiting = order.slice(n * 4).map(p => p.id);
+
+  // 2. 分到各場：試多次，挑重複最少的
+  let best = null, bestScore = Infinity;
+  for(let t = 0; t < 40; t++){
+    let list;
+    if(S.mode === 'close'){
+      list = [...playing].map(p => ({ p, k: eff(p) + (Math.random() * 3 - 1.5) })).sort((x, y) => y.k - x.k).map(x => x.p);
+    } else {
+      list = shuffle([...playing]);
+    }
+    const groups = [];
+    for(let i = 0; i < n; i++) groups.push(list.slice(i * 4, i * 4 + 4));
+    let score = 0;
+    const courts = groups.map(g => {
+      const r = splitTeams(g, st);
+      score += r.score;
+      // 等級相近模式：同場等級差距越小越好
+      if(S.mode === 'close'){ const lv = g.map(eff); score += (Math.max(...lv) - Math.min(...lv)) * 1.5; }
+      return r.court;
+    });
+    if(score < bestScore){ bestScore = score; best = courts; }
+  }
+  return { courts: best, waiting };
+}
+
+// 4 人分兩隊：讓兩隊等級總和接近，並避免重複搭檔
+function splitTeams(g, st){
+  const opts = [[0,1,2,3],[0,2,1,3],[0,3,1,2]];
+  let best = null, bs = Infinity;
+  shuffle(opts).forEach(([a, b, c, d]) => {
+    const A = [g[a], g[b]], B = [g[c], g[d]];
+    const diff = Math.abs(eff(A[0]) + eff(A[1]) - eff(B[0]) - eff(B[1]));
+    const rep = (st.partner[[A[0].id, A[1].id].sort().join('|')] || 0) + (st.partner[[B[0].id, B[1].id].sort().join('|')] || 0);
+    const s = diff * 3 + rep * 4;
+    if(s < bs){ bs = s; best = { a: A.map(p => p.id), b: B.map(p => p.id) }; }
+  });
+  let metScore = 0;
+  for(let i = 0; i < 4; i++) for(let j = i + 1; j < 4; j++) metScore += st.met[[g[i].id, g[j].id].sort().join('|')] || 0;
+  return { court: best, score: bs + metScore };
+}
+
+/* ---------- 畫面 ---------- */
+function render(){
+  $('#courtN').textContent = S.courts;
+  document.querySelectorAll('.seg button[data-mode]').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === S.mode));
+  document.querySelectorAll('.seg button[data-scale]').forEach(b => b.setAttribute('aria-pressed', b.dataset.scale === S.scale));
+  const tierMode = S.scale === 'tier';
+  const mixMode = S.mode === 'mix';
+  $('#scaleBox').hidden = mixMode;
+  document.querySelector('.pair').classList.toggle('two', mixMode);
+  $('#lvHead').textContent = mixMode ? '' : '等級';
+  $('#addForm').level.hidden = tierMode || mixMode;
+  $('#addForm').tier.hidden = !tierMode || mixMode;
+  $('#bulkText').placeholder = mixMode
+    ? '每行一位，只要輸入名字\n小明\n阿華\nKevin'
+    : tierMode
+    ? '每行一位，名字和「特」或「般」用空白或逗號隔開\n小明 特\n阿華,般\nKevin 特'
+    : '每行一位，名字和等級用空白或逗號隔開\n小明 10\n阿華,6\nKevin 13';
+
+  const st = stats();
+  const pl = $('#plist');
+  if(!S.players.length){
+    pl.innerHTML = '';
+  } else {
+    pl.innerHTML = S.players.map(p => `
+      <li class="${p.active ? '' : 'off'}" data-id="${p.id}">
+        <input type="checkbox" ${p.active ? 'checked' : ''} aria-label="${esc(p.name)} 出席">
+        <span class="pname" title="${esc(p.name)}">${esc(p.name)}</span>
+        ${mixMode ? '<span></span>' : tierMode
+          ? `<button type="button" class="tierbtn ${tierOf(p)}" aria-label="${esc(p.name)} 目前是${tierOf(p) === 'pro' ? '特級廚師' : '一般廚師'}，點一下切換">${tierOf(p) === 'pro' ? '特級' : '一般'}</button>`
+          : `<select class="lvsel num" aria-label="${esc(p.name)} 等級">${Array.from({ length: 15 }, (_, i) => `<option${i + 1 === p.level ? ' selected' : ''}>${i + 1}</option>`).join('')}</select>`}
+        <span class="games num">${st.games[p.id] || 0}</span>
+        <button class="del" type="button" aria-label="移除 ${esc(p.name)}">×</button>
+      </li>`).join('');
+  }
+  const on = S.players.filter(p => p.active).length;
+  const use = Math.min(S.courts, Math.floor(on / 4));
+  $('#count').textContent = S.players.length
+    ? `出席 ${on} 人，每輪可開 ${use} 面場（${use * 4} 人上場、${on - use * 4} 人休息）`
+    : '';
+
+  $('#clearAll').hidden = !S.players.length;
+  renderRosters();
+  renderCurrent();
+  renderHistory();
+  $('#redo').disabled = !S.rounds.length;
+}
+
+const badge = p => S.mode === 'mix' ? '' : S.scale === 'tier'
+  ? `<span class="lv ${tierOf(p) === 'pro' ? '' : 'reg'}">${tierOf(p) === 'pro' ? '特級' : '一般'}</span>`
+  : `<span class="lv num">${p.level}</span>`;
+const chip = id => { const p = byId(id); return p ? `<span class="chip"><span class="n">${esc(p.name)}</span>${badge(p)}</span>` : '<span class="chip"><span class="n">（已移除）</span></span>'; };
+const lvSum = ids => ids.reduce((s, id) => s + (byId(id)?.level || 0), 0);
+const proN = ids => ids.filter(id => { const p = byId(id); return p && tierOf(p) === 'pro'; }).length;
+const scoreText = c => S.mode === 'mix' ? '' : S.scale === 'tier' ? `特級 ${proN(c.a)} : ${proN(c.b)}` : `${lvSum(c.a)} : ${lvSum(c.b)}`;
+
+function renderCurrent(){
+  const box = $('#current');
+  const r = S.rounds[S.rounds.length - 1];
+  if(!r){
+    box.innerHTML = `<div class="empty"><strong style="margin:0">還沒有排任何一輪</strong></div>`;
+    return;
+  }
+  box.innerHTML = `
+    <div class="roundtitle"><span class="big num">${S.rounds.length}</span><span class="lbl">第 ${S.rounds.length} 輪</span></div>
+    <div class="courts">${r.courts.map((c, i) => `
+      <div class="court${freshRound ? ' fresh' : ''}" style="animation-delay:${i * 70}ms">
+        <div class="tag"><b>場地 ${i + 1}</b><span class="score num">${scoreText(c)}</span></div>
+        <div class="surface">
+          <div class="side a">${c.a.map(chip).join('')}</div>
+          <div class="side b">${c.b.map(chip).join('')}</div>
+        </div>
+      </div>`).join('')}
+    </div>
+    <div class="wait"><h3>這輪休息（${r.waiting.length} 人）</h3>
+      <div class="chips">${r.waiting.length ? r.waiting.map(chip).join('') : '<span style="color:var(--muted)">全員上場</span>'}</div>
+    </div>`;
+  freshRound = false;
+}
+
+function renderHistory(){
+  const h = $('#hist');
+  if(S.rounds.length < 2){ h.innerHTML = ''; return; }
+  const name = id => esc(byId(id)?.name || '（已移除）');
+  const items = S.rounds.slice(0, -1).map((r, ri) => ({ r, ri })).reverse().map(({ r, ri }) => `
+    <li><span class="rn num">${ri + 1}</span><div class="m">
+      ${r.courts.map((c, i) => `<div>場地 ${i + 1}：${c.a.map(name).join('、')}<span class="vs">對</span>${c.b.map(name).join('、')}</div>`).join('')}
+      ${r.waiting.length ? `<div class="rest">休息：${r.waiting.map(name).join('、')}</div>` : ''}
+    </div></li>`).join('');
+  h.innerHTML = `<h3>之前的輪次</h3><ol>${items}</ol>`;
+}
+
+/* ---------- 事件 ---------- */
+function addPlayer(name, level, tier){
+  name = name.trim(); if(!name) return false;
+  const p = { id: 'p' + (S.seq++), name, level: clampLv(level), active: true };
+  if(tier){ p.tier = tier; p.level = tier === 'pro' ? 10 : 5; }
+  S.players.push(p);
+  return true;
+}
+$('#addForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const f = e.target;
+  const ok = S.mode === 'mix' ? addPlayer(f.name.value, 5, null) : addPlayer(f.name.value, f.level.value, S.scale === 'tier' ? f.tier.value : null);
+  if(ok){ save(); render(); f.name.value = ''; f.name.focus(); }
+});
+function parseLines(text){
+  let n = 0;
+  text.split(/\n/).forEach(line => {
+    line = line.trim(); if(!line) return;
+    const m = line.match(/^(.+?)[\s,，、\t]+(\S+)$/);
+    let name = line, lv = 5, tier = S.mode !== 'mix' && S.scale === 'tier' ? 'reg' : null;
+    if(m){
+      const v = m[2];
+      if(/^\d{1,2}$/.test(v)){ name = m[1]; lv = v; tier = null; }
+      else if(/^(特|特級|特級廚師|強)$/.test(v)){ name = m[1]; tier = 'pro'; }
+      else if(/^(般|一般|一般廚師|弱|普通)$/.test(v)){ name = m[1]; tier = 'reg'; }
+    }
+    if(S.mode === 'mix'){ lv = 5; tier = null; }
+    n += addPlayer(name, lv, tier) ? 1 : 0;
+  });
+  return n;
+}
+const bulkModal = $('#bulkModal');
+const scaleName = s => s === 'tier' ? '特級／一般' : s === 'fine' ? '1–15' : s === 'none' ? '混打' : '未記錄制度';
+function fillRosterSelect(){
+  const list = loadRosters();
+  $('#bulkRoster').innerHTML = '<option value="">導入常用名單</option>' + (list.length
+    ? list.map((r, i) => `<option value="${i}">${esc(r.name)}（${r.players.length} 人，${scaleName(r.scale)}）</option>`).join('')
+    : '<option value="" disabled>還沒有存過名單</option>');
+}
+function openBulk(){ fillRosterSelect(); bulkModal.hidden = false; $('#bulkText').focus(); }
+function closeBulk(){ bulkModal.hidden = true; $('#openBulk').focus(); }
+$('#openBulk').addEventListener('click', openBulk);
+$('#closeBulk').addEventListener('click', closeBulk);
+bulkModal.addEventListener('click', e => { if(e.target === bulkModal) closeBulk(); });
+document.addEventListener('keydown', e => { if(e.key === 'Escape' && !bulkModal.hidden) closeBulk(); });
+$('#bulkAdd').addEventListener('click', () => {
+  const n = parseLines($('#bulkText').value);
+  if(n){ $('#bulkText').value = ''; bulkFmt = null; save(); render(); closeBulk(); toast(`已加入 ${n} 人`); }
+  else toast('還沒有輸入任何名字');
+});
+// 輸入框目前用的格式：由第一份導入的名單決定，後導入的會換算成這個格式
+let bulkFmt = null;
+$('#bulkClear').addEventListener('click', () => { $('#bulkText').value = ''; bulkFmt = null; $('#bulkText').focus(); });
+$('#bulkRoster').addEventListener('change', e => {
+  const r = loadRosters()[+e.target.value];
+  e.target.value = '';
+  if(!r) return;
+  const ta = $('#bulkText');
+  const rScale = r.scale || curFmt();
+  let switched = false;
+  if(!ta.value.trim()){
+    bulkFmt = rScale;
+    if(curFmt() !== rScale){ applyFmt(rScale); switched = true; save(); render(); }
+  } else if(!bulkFmt){
+    bulkFmt = curFmt();
+  }
+  const lines = r.players.map(p => {
+    // 隨機混打：只放名字，加入時等級一律是 5
+    if(bulkFmt === 'none' || rScale === 'none') return p.name;
+    if(bulkFmt === 'tier'){
+      // 1–15 名單轉二分：5 以下一般，大於 5 特級
+      const pro = rScale === 'tier' ? tierOf(p) === 'pro' : p.level > 5;
+      return `${p.name} ${pro ? '特' : '般'}`;
+    }
+    // 二分名單轉 1–15：特級 10、一般 5
+    const lv = rScale === 'tier' ? (tierOf(p) === 'pro' ? 10 : 5) : p.level;
+    return `${p.name} ${lv}`;
+  }).join('\n');
+  ta.value = ta.value.trim() ? ta.value.trim() + '\n' + lines : lines;
+  const conv = rScale !== bulkFmt ? `，已換算成${scaleName(bulkFmt)}` : '';
+  toast(switched ? `已放入「${r.name}」，切換成${scaleName(rScale)}` : `已放入「${r.name}」${conv}`);
+});
+$('#plist').addEventListener('change', e => {
+  const li = e.target.closest('li'); if(!li) return;
+  const p = byId(li.dataset.id);
+  if(e.target.type === 'checkbox') p.active = e.target.checked;
+  if(e.target.classList.contains('lvsel')){ p.level = clampLv(e.target.value); delete p.tier; }
+  save(); render();
+});
+$('#plist').addEventListener('click', e => {
+  const tb = e.target.closest('.tierbtn');
+  if(tb){ const p = byId(tb.closest('li').dataset.id); p.tier = tierOf(p) === 'pro' ? 'reg' : 'pro'; save(); render(); return; }
+  if(!e.target.classList.contains('del')) return;
+  const id = e.target.closest('li').dataset.id;
+  const p = byId(id);
+  armed(e.target, '移除', () => { S.players = S.players.filter(x => x.id !== id); save(); render(); toast(`已移除 ${p.name}`); });
+});
+$('#cUp').addEventListener('click', () => { S.courts = Math.min(20, S.courts + 1); save(); render(); });
+$('#cDown').addEventListener('click', () => { S.courts = Math.max(1, S.courts - 1); save(); render(); });
+document.querySelectorAll('.seg button[data-mode]').forEach(b => b.addEventListener('click', () => { S.mode = b.dataset.mode; save(); render(); }));
+document.querySelectorAll('.seg button[data-scale]').forEach(b => b.addEventListener('click', () => { S.scale = b.dataset.scale; save(); render(); }));
+$('#next').addEventListener('click', () => {
+  const r = makeRound(); if(!r) return;
+  S.rounds.push(r); freshRound = true; save(); render();
+  window.scrollTo({ top: $('main').offsetTop - 10, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+});
+$('#redo').addEventListener('click', () => {
+  if(!S.rounds.length) return;
+  const old = S.rounds.pop();
+  const r = makeRound();
+  if(!r){ S.rounds.push(old); return; }
+  S.rounds.push(r); freshRound = true; save(); render(); toast('已重排這一輪');
+});
+const modal = $('#rosterModal');
+function openRosters(){ renderRosters(); modal.hidden = false; modal.querySelector('input').focus(); }
+function closeRosters(){ modal.hidden = true; $('#openRosters').focus(); }
+$('#openRosters').addEventListener('click', openRosters);
+$('#closeRosters').addEventListener('click', closeRosters);
+modal.addEventListener('click', e => { if(e.target === modal) closeRosters(); });
+document.addEventListener('keydown', e => { if(e.key === 'Escape' && !modal.hidden) closeRosters(); });
+$('#saveForm').addEventListener('submit', e => {
+  e.preventDefault();
+  if(!S.players.length){ toast('名單是空的，先加入球員再儲存'); return; }
+  const d = new Date();
+  const name = e.target.rname.value.trim() || `${d.getMonth() + 1}/${d.getDate()} 名單`;
+  const list = loadRosters();
+  const data = { name, scale: curFmt(), savedAt: Date.now(), players: S.players.map(p => S.mode === 'mix' ? { name: p.name, level: 5 } : ({ name: p.name, level: p.level, ...(S.scale === 'tier' ? { tier: tierOf(p) } : p.tier ? { tier: p.tier } : {}) })) };
+  const i = list.findIndex(r => r.name === name);
+  if(i >= 0) list[i] = data; else list.unshift(data);
+  if(saveRosters(list)){ e.target.rname.value = ''; renderRosters(); toast(i >= 0 ? `已更新「${name}」` : `已儲存「${name}」`); }
+  else toast('儲存失敗：這個瀏覽器不允許存資料');
+});
+$('#rlist').addEventListener('click', e => {
+  const li = e.target.closest('li[data-i]'); if(!li) return;
+  const list = loadRosters(); const r = list[+li.dataset.i]; if(!r) return;
+  if(e.target.classList.contains('rdel')){
+    armed(e.target, '確定刪除', () => { list.splice(+li.dataset.i, 1); saveRosters(list); renderRosters(); toast(`已刪除「${r.name}」`); });
+    return;
+  }
+  if(e.target.classList.contains('rload')){
+    const doLoad = () => {
+      S.players = r.players.map(p => ({ id: 'p' + (S.seq++), name: p.name, level: clampLv(p.level), ...(p.tier ? { tier: p.tier } : {}), active: true }));
+      if(r.scale) applyFmt(r.scale);
+      S.rounds = []; save(); render(); closeRosters(); toast(`已匯入「${r.name}」，共 ${r.players.length} 人`);
+    };
+    if(S.players.length || S.rounds.length) armed(e.target, '取代目前名單？', doLoad);
+    else doLoad();
+  }
+});
+$('#clearAll').addEventListener('click', e => {
+  armed(e.currentTarget, '確認刪除？', () => { S.players = []; S.rounds = []; save(); render(); toast('已刪除全部人員和輪次'); });
+});
+$('#reset').addEventListener('click', e => {
+  if(!S.rounds.length){ toast('目前沒有輪次可以清除'); return; }
+  armed(e.currentTarget, '再按一次確認清除', () => { S.rounds = []; save(); render(); toast('已清除所有輪次，名單保留'); });
+});
+/* ---------- 常用名單（存在這台裝置的瀏覽器） ---------- */
+const RKEY = 'badminton-rosters-v1';
+function loadRosters(){ try{ return JSON.parse(localStorage.getItem(RKEY)) || []; }catch(e){ return []; } }
+function saveRosters(list){ try{ localStorage.setItem(RKEY, JSON.stringify(list)); return true; }catch(e){ return false; } }
+function renderRosters(){
+  const list = loadRosters();
+  $('#rlist').innerHTML = list.length
+    ? list.map((r, i) => `<li data-i="${i}"><span class="rn" title="${esc(r.name)}">${esc(r.name)}<small>${r.players.length} 人，${scaleName(r.scale)}</small></span><button class="btn rload" type="button">匯入</button><button class="del rdel" type="button" aria-label="刪除名單 ${esc(r.name)}">×</button></li>`).join('')
+    : '<li style="border:0;display:block"><p class="rempty">還沒有存過名單。把人加好後按「儲存目前名單」，下次就能一鍵匯入。</p></li>';
+}
+
+render();
+</script>
+</body>
+</html>
