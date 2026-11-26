@@ -158,7 +158,14 @@ details.bulk textarea{width:100%;min-height:110px;margin-top:8px;border:1px soli
 .fold .hbtns{justify-content:flex-start;margin-bottom:12px}
 .fold .hbtns .btn{font-size:13px}
 @media (prefers-reduced-motion:reduce){.chev{transition:none}}
-.topbar{grid-column:1/-1;display:flex;justify-content:flex-end;margin-bottom:-12px}
+.topbar{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;margin-bottom:-12px}
+.ver{border:1px solid var(--rule);background:var(--surface);color:var(--muted);border-radius:999px;padding:3px 10px;font-size:13px;cursor:pointer}
+.ver:hover{color:var(--ink);border-color:var(--accent)}
+.notice ul{margin:0 0 14px;padding-left:20px}
+.notice li{margin-bottom:8px}
+.nfoot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.nfoot label{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:14px;cursor:pointer}
+.nfoot input{width:18px;height:18px;accent-color:var(--accent)}
 .sponsor{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:999px;background:var(--cork);color:var(--cork-ink);font-size:13px;font-weight:700;text-decoration:none;transition:transform .15s,filter .15s}
 .sponsor:hover{filter:brightness(1.05);transform:translateY(-1px)}
 @media (prefers-reduced-motion:reduce){.sponsor{transition:none}.sponsor:hover{transform:none}}
@@ -225,6 +232,13 @@ details.bulk textarea{width:100%;min-height:110px;margin-top:8px;border:1px soli
 .hist .m div{margin-bottom:2px}
 .hist .vs{color:var(--muted);margin:0 6px}
 .hist .rest{color:var(--muted);font-size:13px}
+.chip.drag{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.chip.drag.lifted{opacity:.35}
+.chip.ghost{position:fixed;left:0;top:0;z-index:30;pointer-events:none;box-shadow:0 8px 22px rgba(0,0,0,.3);cursor:grabbing}
+.chip.over{outline:3px solid var(--cork);outline-offset:2px}
+.wait.over{outline:2px dashed var(--accent);outline-offset:6px;border-radius:8px}
+body.dragging,body.dragging *{cursor:grabbing!important}
+.swaphint{font-size:13px;color:var(--muted);margin:6px 0 0}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20}
 .toast.show{opacity:1}
 </style>
@@ -232,7 +246,7 @@ details.bulk textarea{width:100%;min-height:110px;margin-top:8px;border:1px soli
 <body>
 <div class="wrap">
   <h1 class="sr-only">Badminton</h1>
-  <div class="topbar"><a class="sponsor" href="https://portaly.cc/willy33316/support" target="_blank" rel="noopener">🏸 斗內一顆羽球</a></div>
+  <div class="topbar"><button type="button" class="ver num" id="verBtn" aria-haspopup="dialog" title="查看更新內容">v1.2</button><a class="sponsor" href="https://portaly.cc/willy33316/support" target="_blank" rel="noopener">🏸 斗內一顆羽球</a></div>
 
   <div class="sidecol">
   <section class="panel fold" aria-label="場地設定">
@@ -320,6 +334,26 @@ details.bulk textarea{width:100%;min-height:110px;margin-top:8px;border:1px soli
       <button class="btn" type="button" data-submit>儲存目前名單</button>
     </form>
     <ul class="rlist" id="rlist"></ul>
+  </div>
+</div>
+<div class="overlay" id="noticeModal" hidden>
+  <div class="modal notice" role="dialog" aria-modal="true" aria-labelledby="noticeTitle">
+    <div class="mhead">
+      <h2 id="noticeTitle">v1.2 更新內容</h2>
+      <button class="del" type="button" id="closeNotice" aria-label="關閉">×</button>
+    </div>
+    <p style="margin:0 0 8px;font-weight:700">新功能：拖曳換人</p>
+    <ul>
+      <li>把<b>等待中的人</b>拖到場上某人身上，兩人直接交換</li>
+      <li>把<b>場上的人</b>拖到等待區，會換上等待第一位</li>
+      <li>被換下的人會排到等待隊伍最後面</li>
+      <li>場上兩人互拖可以交換位置（換隊友或跨場都可以）</li>
+      <li>手機用手指按住名字拖曳即可</li>
+    </ul>
+    <div class="nfoot">
+      <label><input type="checkbox" id="noticeHide">不要再顯示</label>
+      <button class="btn primary" type="button" id="noticeOk">知道了</button>
+    </div>
   </div>
 </div>
 <div class="toast" id="toast" role="status"></div>
@@ -416,9 +450,13 @@ function makeRound(){
   return best;
 }
 
+// 被換下場的人排到隊伍最後（依被換下的先後），等他下次上場後恢復正常
+const tailCmp = (p, q) => ((p.tail ? 1 : 0) - (q.tail ? 1 : 0)) || (p.tail && q.tail ? p.tail - q.tail : 0);
+const seated = c => [...c.a, ...c.b].forEach(id => { const p = byId(id); if(p) delete p.tail; });
 // 上場順序：打最少場的優先，同場數時休息最久的優先
 function byPriority(list, st){
   return list.sort((p, q) => {
+    const tc = tailCmp(p, q); if(tc) return tc;
     const g = (st.games[p.id] || 0) - (st.games[q.id] || 0);
     if(g) return g;
     return (st.last[p.id] ?? -1) - (st.last[q.id] ?? -1);
@@ -493,6 +531,7 @@ function arrangeAll(){
     const g = { court: ci, a: c.a, b: c.b, t: S.tick };
     S.games.push(g); S.board[ci] = S.games.length - 1;
     setUndo(ci, g, prevs[ci], false);
+    seated(g);
   });
   fresh = new Set(courts.map((_, i) => i));
   return true;
@@ -505,6 +544,7 @@ function arrangeCourt(ci){
   const g = { court: ci, a: c.a, b: c.b, t: S.tick };
   S.games.push(g); S.board[ci] = S.games.length - 1;
   setUndo(ci, g, prev, false);
+  seated(g);
   fresh = new Set([ci]);
   return true;
 }
@@ -524,6 +564,7 @@ function rerollCourt(ci){
   S.games.push(g); S.board[ci] = S.games.length - 1;
   if(chain) S.cundo[ci] = { key: keyOf(g), prev: u.prev, removed: true };
   else setUndo(ci, g, old, true);
+  seated(g);
   fresh = new Set([ci]);
   return true;
 }
@@ -543,7 +584,45 @@ function undoCourt(ci){
   S.cundo[ci] = null;
   return true;
 }
-function resetPlay(){ S.games = []; S.board = []; S.tick = 0; S.cundo = []; delete S.undo; S.players.forEach(p => delete p.adj); }
+function resetPlay(){ S.games = []; S.board = []; S.tick = 0; S.cundo = []; delete S.undo; S.players.forEach(p => { delete p.adj; delete p.tail; }); }
+// 等待中的人，依上場順序
+function waitingIds(){
+  const st = stats(), busy = onCourt(-1);
+  return S.players.map((p, i) => ({ p, i })).filter(x => x.p.active && !busy.has(x.p.id)).sort((x, y) => {
+    const tc = tailCmp(x.p, y.p); if(tc) return tc;
+    const g = (st.games[x.p.id] || 0) - (st.games[y.p.id] || 0);
+    if(g) return g;
+    const l = (st.last[x.p.id] ?? -1) - (st.last[y.p.id] ?? -1);
+    return l || x.i - y.i;
+  }).map(x => x.p.id);
+}
+// 場上換人：outId 下場，inId 上場；沒指定就換等待第一位，被換下的人排到最後
+function swapPlayer(ci, outId, inId){
+  const g = S.games[S.board[ci]]; if(!g) return null;
+  if(!inId) inId = waitingIds()[0];
+  if(!inId) return null;
+  const rep = arr => arr.map(x => x === outId ? inId : x);
+  g.a = rep(g.a); g.b = rep(g.b);
+  const po = byId(outId), pi = byId(inId);
+  if(po){ S.tailSeq = (S.tailSeq || 0) + 1; po.tail = S.tailSeq; }
+  if(pi) delete pi.tail;
+  fresh = new Set([ci]);
+  return `${po ? po.name : '（已移除）'} 下場，${pi ? pi.name : ''} 上場`;
+}
+// 場上兩個人互換位置（同一場換隊友，或跨場互換）
+function swapCourt(c1, id1, c2, id2){
+  const g1 = S.games[S.board[c1]], g2 = S.games[S.board[c2]];
+  if(!g1 || !g2 || id1 === id2) return null;
+  if(g1 === g2){
+    const f = arr => arr.map(x => x === id1 ? id2 : x === id2 ? id1 : x);
+    g1.a = f(g1.a); g1.b = f(g1.b);
+  } else {
+    g1.a = g1.a.map(x => x === id1 ? id2 : x); g1.b = g1.b.map(x => x === id1 ? id2 : x);
+    g2.a = g2.a.map(x => x === id2 ? id1 : x); g2.b = g2.b.map(x => x === id2 ? id1 : x);
+  }
+  fresh = new Set([c1, c2]);
+  return `${byId(id1)?.name || '（已移除）'} 和 ${byId(id2)?.name || '（已移除）'} 互換`;
+}
 
 // 4 人分兩隊：讓兩隊等級總和接近，並避免重複搭檔
 function splitTeams(g, st){
@@ -632,15 +711,9 @@ function renderCurrent(){
     box.innerHTML = `<div class="empty"><strong style="margin:0">還沒有排任何一輪</strong></div>`;
     return;
   }
-  const st = stats();
-  const busy = onCourt(-1);
-  const order = S.players.map((p, i) => ({ p, i }));
-  const waiting = order.filter(x => x.p.active && !busy.has(x.p.id)).sort((x, y) => {
-    const g = (st.games[x.p.id] || 0) - (st.games[y.p.id] || 0);
-    if(g) return g;
-    const l = (st.last[x.p.id] ?? -1) - (st.last[y.p.id] ?? -1);
-    return l || x.i - y.i;
-  }).map(x => x.p.id);
+  const waiting = waitingIds();
+  const cchip = ci => id => { const p = byId(id); return `<span class="chip drag" data-drag="c" data-swap="${ci}" data-id="${esc(id)}"><span class="n">${p ? esc(p.name) : '（已移除）'}</span>${p ? badge(p) : ''}</span>`; };
+  const wchip = id => { const p = byId(id); return `<span class="chip drag" data-drag="w" data-in="${esc(id)}"><span class="n">${esc(p.name)}</span>${badge(p)}</span>`; };
   let cards = '';
   for(let i = 0; i < S.courts; i++){
     const gi = S.board[i], c = gi != null ? S.games[gi] : null;
@@ -649,7 +722,7 @@ function renderCurrent(){
       <div class="court${fresh.has(i) ? ' fresh' : ''}${c ? '' : ' idle'}">
         <div class="tag"><b>場地 ${i + 1}${c ? `<small>第 ${no} 場</small>` : ''}</b><span class="score num">${c ? scoreText(c) : ''}</span></div>
         <div class="surface">
-          ${c ? `<div class="side a">${c.a.map(chip).join('')}</div><div class="side b">${c.b.map(chip).join('')}</div>` : '<div class="side a"></div><div class="side b"></div><span class="vacant">空場</span>'}
+          ${c ? `<div class="side a">${c.a.map(cchip(i)).join('')}</div><div class="side b">${c.b.map(cchip(i)).join('')}</div>` : '<div class="side a"></div><div class="side b"></div><span class="vacant">空場</span>'}
         </div>
         <div class="cbtns">
           <button class="cbtn ghost" type="button" data-undo="${i}" ${S.cundo && S.cundo[i] ? '' : 'disabled'} aria-label="復原場地 ${i + 1}">↶ 復原</button>
@@ -660,8 +733,9 @@ function renderCurrent(){
   }
   box.innerHTML = `
     <div class="courts">${cards}</div>
+    <p class="swaphint">拖曳名字換人：等待中的人拖到場上某人身上就跟他交換；場上的人拖到等待區，會換上等待第一位，自己排到最後</p>
     <div class="wait"><h3>等待中（${waiting.length} 人，依上場順序）</h3>
-      <div class="chips">${waiting.length ? waiting.map(chip).join('') : '<span style="color:var(--muted)">全員都在場上</span>'}</div>
+      <div class="chips">${waiting.length ? waiting.map(wchip).join('') : '<span style="color:var(--muted)">全員都在場上</span>'}</div>
     </div>`;
   fresh = new Set();
 }
@@ -817,6 +891,58 @@ $('#current').addEventListener('click', e => {
   const ci = +b.dataset.court;
   if(arrangeCourt(ci)){ save(); render(); toast(`場地 ${ci + 1} 換下一組了`); }
 });
+/* ---------- 拖曳換人（滑鼠、手指都可以） ---------- */
+let drag = null;
+$('#current').addEventListener('pointerdown', e => {
+  const el = e.target.closest('[data-drag]');
+  if(!el || e.button > 0) return;
+  drag = { el, x: e.clientX, y: e.clientY, on: false, ghost: null, over: null };
+});
+function dropTarget(x, y){
+  const hit = document.elementFromPoint(x, y); if(!hit) return null;
+  const src = drag.el;
+  const t = hit.closest('[data-drag]') || hit.closest('.wait');
+  if(!t || t === src) return null;
+  // 等待中的人只能拖到場上的人身上
+  if(src.dataset.drag === 'w') return t.dataset.drag === 'c' ? t : null;
+  return t;
+}
+document.addEventListener('pointermove', e => {
+  if(!drag) return;
+  if(!drag.on){
+    if(Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 6) return;
+    drag.on = true;
+    const r = drag.el.getBoundingClientRect();
+    const g = drag.el.cloneNode(true);
+    g.classList.add('ghost'); g.removeAttribute('data-drag');
+    g.style.width = r.width + 'px';
+    document.body.appendChild(g); drag.ghost = g;
+    drag.dx = drag.x - r.left; drag.dy = drag.y - r.top;
+    drag.el.classList.add('lifted');
+    document.body.classList.add('dragging');
+  }
+  e.preventDefault();
+  drag.ghost.style.transform = `translate(${e.clientX - drag.dx}px, ${e.clientY - drag.dy}px)`;
+  const t = dropTarget(e.clientX, e.clientY);
+  if(t !== drag.over){ if(drag.over) drag.over.classList.remove('over'); if(t) t.classList.add('over'); drag.over = t; }
+}, { passive: false });
+function endDrag(cancel){
+  if(!drag) return;
+  const d = drag; drag = null;
+  if(!d.on) return;
+  d.ghost.remove(); d.el.classList.remove('lifted'); document.body.classList.remove('dragging');
+  if(d.over) d.over.classList.remove('over');
+  const t = d.over, s = d.el;
+  if(cancel || !t) return;
+  let msg = null;
+  if(s.dataset.drag === 'w') msg = swapPlayer(+t.dataset.swap, t.dataset.id, s.dataset.in);
+  else if(t.dataset.drag === 'w') msg = swapPlayer(+s.dataset.swap, s.dataset.id, t.dataset.in);
+  else if(t.dataset.drag === 'c') msg = swapCourt(+s.dataset.swap, s.dataset.id, +t.dataset.swap, t.dataset.id);
+  else { msg = swapPlayer(+s.dataset.swap, s.dataset.id, null); if(!msg) toast('目前沒有等待中的人可以換'); }
+  if(msg){ save(); render(); toast(msg); }
+}
+document.addEventListener('pointerup', () => endDrag(false));
+document.addEventListener('pointercancel', () => endDrag(true));
 const modal = $('#rosterModal');
 function openRosters(){ renderRosters(); modal.hidden = false; modal.querySelector('input').focus(); }
 function closeRosters(){ modal.hidden = true; $('#openRosters').focus(); }
@@ -871,7 +997,26 @@ function renderRosters(){
     : '<li style="border:0;display:block"><p class="rempty">還沒有存過名單。把人加好後按「儲存目前名單」，下次就能一鍵匯入。</p></li>';
 }
 
+/* ---------- 版本公告 ---------- */
+const VER = '1.2', NKEY = 'badminton-notice-hidden';
+const noticeModal = $('#noticeModal');
+function openNotice(){
+  let hidden = false; try{ hidden = localStorage.getItem(NKEY) === VER; }catch(e){}
+  $('#noticeHide').checked = hidden;
+  noticeModal.hidden = false; $('#noticeOk').focus();
+}
+function closeNotice(){
+  try{ if($('#noticeHide').checked) localStorage.setItem(NKEY, VER); else localStorage.removeItem(NKEY); }catch(e){}
+  noticeModal.hidden = true;
+}
+$('#verBtn').addEventListener('click', openNotice);
+$('#noticeOk').addEventListener('click', closeNotice);
+$('#closeNotice').addEventListener('click', closeNotice);
+noticeModal.addEventListener('click', e => { if(e.target === noticeModal) closeNotice(); });
+document.addEventListener('keydown', e => { if(e.key === 'Escape' && !noticeModal.hidden) closeNotice(); });
+
 render();
+try{ if(localStorage.getItem(NKEY) !== VER) openNotice(); }catch(e){ openNotice(); }
 </script>
 </body>
 </html>
